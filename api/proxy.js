@@ -14,7 +14,11 @@ const API_KEYS = [
     'AIzaSyBC2iW-AOcJsRMIFWPUS6_1-5ie-lOoMf8',
     'AIzaSyBgTcKmUg0XpmfdIMd0zs8CSSUFOa3QW4U',
     'AIzaSyCh7XGGIdJlmm8XoOM7W6xEbZF3JPnhbZI',
-    'AIzaSyDh_bk184ese3v4c4bLOX9k1YqURVSArNM'
+    'AIzaSyDh_bk184ese3v4c4bLOX9k1YqURVSArNM', 
+    'AIzaSyDLyjQlG1fa06pyy9AyOM1gHVRGKAzsaP8',
+    'AIzaSyBO7mvPzeqJCx3k_VXpUWcLNU14FbmcV1E',
+    'AIzaSyDTd6iud35iT9fvaZ7gq8UDTyiX9eT8woI',
+    'AIzaSyBwCJUjJrJBoCM5HMPX83m1u271lC9ZapI'
 ];
 
 // الدالة الرئيسية التي يتم استدعاؤها من Vercel
