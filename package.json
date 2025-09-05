@@ -1,0 +1,12 @@
+{
+  "name": "gemini-proxy-api",
+  "version": "1.0.0",
+  "description": "A serverless proxy for Google Gemini API.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
