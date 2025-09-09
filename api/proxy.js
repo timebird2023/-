@@ -88,7 +88,7 @@ const handleGeminiRequest = async (enhancedQuery, isArabic) => {
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Proxy-Target');
 
     if (req.method === 'OPTIONS') {
         res.status(200).end();
@@ -97,12 +97,11 @@ module.exports = async (req, res) => {
 
     try {
         const originalUrl = 'https://sii3.moayman.top/';
-        let targetPath = req.query.api || (req.body && req.body.api);
+        const api = req.query.api || (req.body && req.body.api);
         let method = req.method;
-        let requestBody = req.body;
+        let requestData = req.body;
 
-        if (!targetPath) {
-            // Check if it's an old Gemini request
+        if (!api) {
             const geminiQuery = req.query.q || (req.body && req.body.q);
             if (geminiQuery) {
                 const isArabic = /[\u0600-\u06FF]/.test(geminiQuery);
@@ -112,73 +111,63 @@ module.exports = async (req, res) => {
                 res.status(200).send(geminiResponse);
                 return;
             }
-
             res.status(400).json({ error: 'No API target specified.' });
             return;
         }
-        
+
         let finalUrl;
         let fetchOptions = {
             method: method,
             headers: {}
         };
         
+        let apiResponse;
+        
         // Handle Gemini requests from new HTML
-        if (targetPath.startsWith('gemini')) {
-            const isArabic = /[\u0600-\u06FF]/.test(requestBody.prompt);
+        if (api.startsWith('gemini')) {
+            const isArabic = /[\u0600-\u06FF]/.test(requestData.prompt);
             const languageInstruction = isArabic ? "أجب باللغة العربية فقط. " : "Please respond in English only. ";
-            const enhancedQuery = languageInstruction + requestBody.prompt;
+            const enhancedQuery = languageInstruction + requestData.prompt;
             const geminiResponse = await handleGeminiRequest(enhancedQuery, isArabic);
             res.status(200).send(geminiResponse);
             return;
         }
 
         // Handle other API requests
-        if (targetPath === 'voice') {
+        if (api === 'voice') {
             finalUrl = originalUrl + 'api/voice.php';
-            if (method === 'GET') {
-                 finalUrl += '?' + querystring.stringify(req.query);
-            } else if (method === 'POST') {
-                fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                fetchOptions.body = querystring.stringify(requestBody);
-            }
-        } else if (targetPath === 'remove-bg') {
+        } else if (api === 'remove-bg') {
             finalUrl = originalUrl + 'api/remove-bg.php';
-            if (method === 'GET') {
-                finalUrl += '?' + querystring.stringify(req.query);
-            } else if (method === 'POST') {
-                fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                fetchOptions.body = querystring.stringify(requestBody);
-            }
-        } else if (targetPath === 'veo') {
+        } else if (api === 'veo') {
             finalUrl = originalUrl + 'api/veo3.php';
-             if (method === 'GET') {
-                finalUrl += '?' + querystring.stringify(req.query);
-            } else if (method === 'POST') {
-                fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                fetchOptions.body = querystring.stringify(requestBody);
-            }
         } else {
              res.status(400).json({ error: 'Invalid API target.' });
              return;
         }
-        
-        // Forward the request
-        const response = await fetch(finalUrl, fetchOptions);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            res.status(response.status).send(errorText);
-            return;
+        if (method === 'GET') {
+            finalUrl += '?' + querystring.stringify(req.query);
+        } else if (method === 'POST') {
+            fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            fetchOptions.body = querystring.stringify(requestData);
         }
 
-        const contentType = response.headers.get('content-type');
+        apiResponse = await fetch(finalUrl, fetchOptions);
+
+        if (!apiResponse.ok) {
+            const errorText = await apiResponse.text();
+            res.status(apiResponse.status).send(errorText);
+            return;
+        }
+        
+        // Check content type from the original API response and set it
+        const contentType = apiResponse.headers.get('content-type');
         if (contentType) {
             res.setHeader('Content-Type', contentType);
         }
-
-        const responseBuffer = await response.buffer();
-        res.status(response.status).send(responseBuffer);
+        
+        const responseBuffer = await apiResponse.buffer();
+        res.status(apiResponse.status).send(responseBuffer);
 
     } catch (error) {
         res.status(500).json({ error: 'خطأ عام في الخدمة: ' + error.message });
