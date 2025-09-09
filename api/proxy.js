@@ -114,26 +114,13 @@ module.exports = async (req, res) => {
             res.status(400).json({ error: 'No API target specified.' });
             return;
         }
-
+        
+        // Handle other API requests
         let finalUrl;
         let fetchOptions = {
-            method: method,
-            headers: {}
+            method: method
         };
-        
-        let apiResponse;
-        
-        // Handle Gemini requests from new HTML
-        if (api.startsWith('gemini')) {
-            const isArabic = /[\u0600-\u06FF]/.test(requestData.prompt);
-            const languageInstruction = isArabic ? "أجب باللغة العربية فقط. " : "Please respond in English only. ";
-            const enhancedQuery = languageInstruction + requestData.prompt;
-            const geminiResponse = await handleGeminiRequest(enhancedQuery, isArabic);
-            res.status(200).send(geminiResponse);
-            return;
-        }
 
-        // Handle other API requests
         if (api === 'voice') {
             finalUrl = originalUrl + 'api/voice.php';
         } else if (api === 'remove-bg') {
@@ -148,11 +135,11 @@ module.exports = async (req, res) => {
         if (method === 'GET') {
             finalUrl += '?' + querystring.stringify(req.query);
         } else if (method === 'POST') {
-            fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            fetchOptions.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
             fetchOptions.body = querystring.stringify(requestData);
         }
 
-        apiResponse = await fetch(finalUrl, fetchOptions);
+        const apiResponse = await fetch(finalUrl, fetchOptions);
 
         if (!apiResponse.ok) {
             const errorText = await apiResponse.text();
