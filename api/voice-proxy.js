@@ -48,7 +48,13 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             };
-            fetchOptions.body = querystring.stringify(requestData);
+            // التأكد من إرسال البيانات بالشكل الصحيح
+            const formData = {
+                text: requestData.text || requestData.prompt,
+                voice: requestData.voice || 'nova',
+                format: requestData.format || 'mp3'
+            };
+            fetchOptions.body = querystring.stringify(formData);
         }
         
         // إرسال الطلب إلى واجهة برمجة التطبيقات الأصلية
