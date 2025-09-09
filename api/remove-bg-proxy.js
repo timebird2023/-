@@ -48,8 +48,16 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             };
+            
+            // التأكد من وجود البيانات المطلوبة
+            const imageData = requestData.url || requestData.image_base64 || requestData.image;
+            if (!imageData) {
+                res.status(400).json({ error: 'مطلوب معامل url أو image_base64' });
+                return;
+            }
+            
             fetchOptions.body = querystring.stringify({
-                url: requestData.image || requestData.image_base64 || requestData.url,
+                url: imageData,
                 format: requestData.format || 'png'
             });
         }
