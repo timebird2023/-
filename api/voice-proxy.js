@@ -18,8 +18,8 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const originalUrl = '[https://sii3.moayman.top/api/voice.php](https://sii3.moayman.top/api/voice.php)';
-        let finalUrl = originalUrl;
+        const originalApiUrl = 'https://sii3.moayman.top/api/voice.php';
+        let finalUrl = originalApiUrl;
         let fetchOptions = { method: req.method };
 
         // بناء الطلب حسب طريقة HTTP (GET أو POST)
