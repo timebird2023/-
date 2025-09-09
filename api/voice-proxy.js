@@ -26,9 +26,29 @@ module.exports = async (req, res) => {
         if (req.method === 'GET') {
             finalUrl += '?' + querystring.stringify(req.query);
         } else if (req.method === 'POST') {
+            // قراءة البيانات من جسم الطلب
+            const body = await new Promise((resolve, reject) => {
+                let chunks = [];
+                req.on('data', chunk => chunks.push(chunk));
+                req.on('end', () => resolve(Buffer.concat(chunks)));
+                req.on('error', reject);
+            });
+            
+            let requestData;
+            try {
+                requestData = JSON.parse(body.toString());
+            } catch (error) {
+                // محاولة تحليل البيانات كـ form-urlencoded إذا فشل JSON
+                const bodyString = body.toString();
+                requestData = querystring.parse(bodyString);
+            }
+
             // التعامل مع البيانات المرسلة في جسم الطلب
-            fetchOptions.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-            fetchOptions.body = querystring.stringify(req.body);
+            fetchOptions.headers = { 
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            };
+            fetchOptions.body = querystring.stringify(requestData);
         }
         
         // إرسال الطلب إلى واجهة برمجة التطبيقات الأصلية
