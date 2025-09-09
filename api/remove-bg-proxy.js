@@ -49,7 +49,7 @@ module.exports = async (req, res) => {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             };
             fetchOptions.body = querystring.stringify({
-                image_base64: requestData.image || requestData.image_base64,
+                url: requestData.image || requestData.image_base64 || requestData.url,
                 format: requestData.format || 'png'
             });
         }
