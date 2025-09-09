@@ -34,13 +34,23 @@ module.exports = async (req, res) => {
                 req.on('end', () => resolve(Buffer.concat(chunks)));
                 req.on('error', reject);
             });
-            requestData = JSON.parse(body.toString());
+            
+            try {
+                requestData = JSON.parse(body.toString());
+            } catch (error) {
+                // محاولة تحليل البيانات كـ form-urlencoded إذا فشل JSON
+                const bodyString = body.toString();
+                requestData = querystring.parse(bodyString);
+            }
 
             // إعادة توجيه البيانات كـ form-urlencoded إلى API الأصلي
-            fetchOptions.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+            fetchOptions.headers = { 
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            };
             fetchOptions.body = querystring.stringify({
-                image_base64: requestData.image,
-                format: requestData.format
+                image_base64: requestData.image || requestData.image_base64,
+                format: requestData.format || 'png'
             });
         }
         
