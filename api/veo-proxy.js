@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const originalApiUrl = 'https://sii3.moayman.top/api/veo3.php';
+        const originalApiUrl = 'https://sii3.top/api/veo3.php';
         let finalUrl = originalApiUrl;
         let fetchOptions = { method: req.method };
 
