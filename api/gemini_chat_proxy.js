@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         }
 
         const selectedModel = modelName || 'gemini-pro';
-        const originalUrl = `https://sii3.moayman.top/api/gemini-dark.php`;
+        const originalUrl = `https://sii3.top/api/gemini-dark.php`;
 
         // تحويل سجل المحادثة إلى تنسيق يتوافق مع Gemini API
         // النموذج الذي قدمته لا يدعم سجل المحادثة في جسم الطلب،
