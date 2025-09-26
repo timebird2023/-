@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const originalApiUrl = 'https://sii3.moayman.top/api/voice.php';
+        const originalApiUrl = 'https://sii3.top/api/voice.php';
         let finalUrl = originalApiUrl;
         let fetchOptions = { method: req.method };
 
