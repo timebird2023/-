@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "path": "/api/pinger", 
+      "schedule": "*/2 * * * *" 
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/pinger",
+      "destination": "/api/pinger"
+    }
+  ]
+}
