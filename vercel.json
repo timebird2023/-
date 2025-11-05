@@ -2,19 +2,18 @@
   "version": 2,
   "builds": [
     {
-      "src": "facebook_bot_v2.py",
-      "use": "@vercel/python",
-      "config": { "maxLambdaSize": "30mb" }
+      "src": "api/facebookbotv2.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/webhook",
-      "dest": "facebook_bot_v2.py"
+      "dest": "api/facebookbotv2.py"
     },
     {
       "src": "/.*",
-      "dest": "facebook_bot_v2.py"
+      "dest": "api/facebookbotv2.py"
     }
   ]
 }
