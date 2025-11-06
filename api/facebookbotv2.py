@@ -22,14 +22,10 @@ PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNv
 DEVELOPER_NAME = "younes laldji"
 AI_ASSISTANT_NAME = "بويكتا"
 
-# 🌟 واجهات الذكاء الاصطناعي الخارجية (المحدّثة والمتبقية) 🌟
+# 🌟 واجهات الذكاء الاصطناعي الخارجية (المتبقية) 🌟
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
-
-# خدمات الصور (تبقى Flux Max فقط)
 FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' 
-# FLUX_PRO_API تم إزالته
-# VEO3_API تم إزالته
 MUSIC_API = 'https://sii3.top/api/create-music.php' 
 
 # الذاكرة المؤقتة وحالة المستخدم
@@ -38,7 +34,7 @@ user_state: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
     'first_time': True, 
     'pending_url': None, 
     'last_extracted_text': None,
-    'last_generated_url': None # لتخزين الرابط الذي لا يظهر
+    'last_generated_url': None
 })
 in_memory_conversations: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
 
@@ -48,6 +44,7 @@ app = Flask(__name__)
 # 🛠️ دوال الشبكة وإرسال الرسائل
 # ====================================================================
 
+# ... (دوال send_api_request, send_text_message, send_quick_replies, send_button_template) ...
 def send_api_request(payload: Dict[str, Any]) -> bool:
     """دالة عامة لإرسال طلب إلى Messenger Send API"""
     params = {'access_token': PAGE_ACCESS_TOKEN}
@@ -62,10 +59,9 @@ def send_api_request(payload: Dict[str, Any]) -> bool:
             return False
         return True
     except Exception as e:
-        logger.error(f"❌ Exception sending API request: {e}")
-        return False
+            logger.error(f"❌ Exception sending API request: {e}")
+            return False
 
-# ... (بقية دوال إرسال الرسائل) ...
 def send_text_message(recipient_id: str, message_text: str):
     """إرسال رسالة نصية بسيطة مع توقيع المطور"""
     footer = f"\n\n🤖 {AI_ASSISTANT_NAME}، تصميم: {DEVELOPER_NAME}" 
@@ -127,18 +123,25 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
     }
     send_api_request(payload)
 
-def send_attachment_with_link_button(recipient_id: str, text: str, attachment_url: str):
-    """دالة خاصة لإرسال رسالة تحتوي على زر للرابط (لمشكلة عدم ظهور المرفقات)"""
-    buttons = [
-        {"type": "web_url", "url": attachment_url, "title": "🔗 عرض الرابط مباشرة"},
-    ]
-    send_button_template(recipient_id, text, buttons)
+def send_attachment_and_note(recipient_id: str, attachment_type: str, url: str, success_text: str):
+    """**دالة جديدة: إرسال المرفق متبوعًا برسالة توضيحية**"""
+    
+    # 1. محاولة إرسال المرفق مباشرة
+    send_attachment(recipient_id, attachment_type, url)
+    
+    # 2. إرسال رسالة النجاح والملاحظة
+    note = f"""
+**ملاحظة حول العرض (فقط لتطبيق فيسبوك لايت):**
+إذا لم تظهر الصورة/الفيديو، يرجى فتح الرسالة عبر **تطبيق فيسبوك ماسنجر** حيث تظهر المرفقات بشكل سليم.
+"""
+    send_menu_after_action(recipient_id, success_text + note)
+
 
 def get_main_menu_quick_replies() -> List[Dict[str, Any]]:
-    """**بناء أزرار القائمة الرئيسية المحدثة (تم حذف الفيديو و Flux Pro)**"""
+    """**بناء أزرار القائمة الرئيسية المحدثة**"""
     return [
         {"content_type": "text", "title": "💬 محادثة جديدة", "payload": "MENU_NEW_CHAT"},
-        {"content_type": "text", "title": "🖼️ إنشاء صورة", "payload": "MENU_CREATE_IMAGE_MAX"}, # توحيد الإنشاء
+        {"content_type": "text", "title": "🖼️ إنشاء صورة", "payload": "MENU_CREATE_IMAGE_MAX"},
         {"content_type": "text", "title": "🎵 إنشاء موسيقى", "payload": "MENU_MUSIC_START"},
         {"content_type": "text", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
         {"content_type": "text", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
@@ -153,7 +156,7 @@ def send_menu_after_action(recipient_id: str, prompt: str):
 # 🧠 منطق الذكاء الاصطناعي والخدمات
 # ====================================================================
 
-# دوال السياق (تم الإبقاء عليها كما هي)
+# ... (دوال السياق) ...
 def get_conversation_history(user_id: str, limit: int = 5) -> List[Tuple[str, str]]:
     history = in_memory_conversations.get(user_id, [])
     return history[-limit:] if history else []
@@ -167,13 +170,12 @@ def add_conversation_entry(user_id: str, message: str, response: str):
 class AIModels:
     @staticmethod
     def _clean_response(text: str) -> str:
-        """**تنظيف الردود من JSON والرموز غير المرغوب فيها وتصحيح البروتوكول**"""
+        """تنظيف الردود من JSON والرموز غير المرغوب فيها وتصحيح البروتوكول"""
         try:
             # 1. محاولة تحميل JSON
             try:
                 json_data = json.loads(text)
                 if isinstance(json_data, dict):
-                    # البحث عن قيمة الرد أولاً، ثم الرابط
                     text = json_data.get('response', json_data.get('url', json_data.get('image', text)))
             except json.JSONDecodeError:
                 pass
@@ -185,7 +187,7 @@ class AIModels:
             text = re.sub(r'\\t', '\t', text)
             text = re.sub(r'\\"', '"', text)
 
-            # 📌 إصلاح البروتوكول: فرض HTTPS للروابط الناتجة
+            # إصلاح البروتوكول: فرض HTTPS للروابط الناتجة
             stripped_text = text.strip()
             if stripped_text.startswith('http://'):
                 stripped_text = 'https://' + stripped_text[7:]
@@ -236,7 +238,7 @@ class AIModels:
     def call_ocr_api(image_url: str, instruction: str = "") -> str:
         """استدعاء OCR API (يستخدم data=)"""
         try:
-            # ملاحظة: OCR API يعمل بشكل أفضل عند إرسال الرابط والتعليمات كنص + رابط.
+            # مثال POST: -d 'text=describe the image' -d 'link=...'
             payload = {"link": image_url, "text": instruction}
             # استخدام data=payload
             response = requests.post(OCR_API, data=payload, timeout=60)
@@ -262,19 +264,13 @@ class AIModels:
         """**إنشاء الصور (Flux Max فقط) (يستخدم data=)**"""
         try:
             english_prompt = AIModels._translate_to_english(prompt)
-            
-            payload = {'prompt': english_prompt} # Flux Max يستخدم 'prompt'
-            # استخدام data=payload
+            payload = {'prompt': english_prompt} 
             response = requests.post(FLUX_MAX_API, data=payload, timeout=90) 
             
             if response.ok:
                 image_url = AIModels._clean_response(response.text)
-                
                 if image_url and 'http' in image_url:
                     return image_url
-                
-                logger.error(f"Image Creation Failed: No valid URL found in response data: {response.text}")
-                return None
             else:
                 logger.error(f"Image Creation API Error (Status: {response.status_code}): {response.text}")
                 return None
@@ -286,10 +282,8 @@ class AIModels:
     def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
         """**تحرير الصور (يستخدم data=)**"""
         english_desc = AIModels._translate_to_english(edit_desc)
-
         try:
             payload = {'prompt': english_desc, 'image': image_url} 
-            # استخدام data=payload
             response = requests.post(FLUX_MAX_API, data=payload, timeout=90)
             if response.ok:
                 flux_url = AIModels._clean_response(response.text)
@@ -298,20 +292,17 @@ class AIModels:
         except Exception as e:
             logger.error(f"Flux-Max Edit Exception: {e}")
             return None
-        
         return None
     
     @staticmethod
     def create_music_ai(prompt: str) -> Optional[str]:
-        """**إنشاء موسيقى (يعمل بشكل صحيح) (يستخدم data=)**"""
+        """**إنشاء موسيقى (يستخدم data=)**"""
         try:
             payload = {'text': prompt}
-            # استخدام data=payload
             response = requests.post(MUSIC_API, data=payload, timeout=90) 
             
             if response.ok:
                 music_url = AIModels._clean_response(response.text)
-                
                 if music_url and 'http' in music_url and music_url.endswith(('.mp3', '.wav', '.ogg', 'mp3')):
                     return music_url
             else:
@@ -370,9 +361,7 @@ def handle_user_message(sender_id: str, message_text: str):
         final_url = AIModels.create_image_ai(message_text)
             
         if final_url:
-            user_state[sender_id]['last_generated_url'] = final_url
-            send_attachment_with_link_button(sender_id, 
-                "✅ تم إنشاء الصورة بنجاح! اختر خدمتك التالية:", final_url)
+            send_attachment_and_note(sender_id, 'image', final_url, "✅ تم إنشاء الصورة بنجاح!")
         else:
             send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء الصورة. حاول بوصف آخر.")
         
@@ -391,9 +380,7 @@ def handle_user_message(sender_id: str, message_text: str):
         final_url = AIModels.edit_image_ai(image_url, message_text)
             
         if final_url:
-            user_state[sender_id]['last_generated_url'] = final_url
-            send_attachment_with_link_button(sender_id, 
-                "✅ تم تحرير الصورة بنجاح! اختر خدمتك التالية:", final_url)
+            send_attachment_and_note(sender_id, 'image', final_url, "✅ تم تحرير الصورة بنجاح!")
         else:
             send_menu_after_action(sender_id, "⚠️ عذراً، فشل تحرير الصورة. حاول بوصف تعديل مختلف.")
         
@@ -407,9 +394,7 @@ def handle_user_message(sender_id: str, message_text: str):
         final_url = AIModels.create_music_ai(message_text)
         
         if final_url:
-            # هنا نعمل إرسال مباشر للمرفق لأنه ثبت عمله بنجاح
-            send_attachment(sender_id, 'audio', final_url) 
-            send_menu_after_action(sender_id, "✅ تم إنشاء الموسيقى بنجاح! اختر خدمتك التالية:")
+            send_attachment_and_note(sender_id, 'audio', final_url, "✅ تم إنشاء الموسيقى بنجاح!")
         else:
             send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء المقطوعة الموسيقية.")
         
@@ -428,7 +413,10 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     attachment_type = attachment.get('type')
     
     if attachment_type == 'image':
-        image_url = attachment['payload']['url']
+        
+        # 📌 الإصلاح الحاسم لـ OCR: إضافة رمز الوصول لتمكين الخادم الخارجي من قراءة الصورة
+        image_url = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
+        
         current_state = user_state[sender_id]['state']
 
         if current_state == 'WAITING_EDIT_IMAGE':
@@ -442,7 +430,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             
             send_text_message(sender_id, "🔍 تم استلام الصورة. جاري استخراج النص...")
             
-            # 📌 ملاحظة: يتم إرسال طلب OCR هنا (صورة + نص فارغ)
+            # يتم استخدام الرابط المحسّن الآن
             extracted_text = AIModels.call_ocr_api(image_url, instruction="")
             
             if extracted_text and not extracted_text.startswith("❌"):
@@ -468,7 +456,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
                 {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
                 {"type": "postback", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"},
             ]
-            user_state[sender_id]['pending_url'] = image_url 
+            user_state[sender_id]['pending_url'] = attachment['payload']['url'] # حفظ الرابط الأصلي
             send_button_template(sender_id, text, buttons)
             
     
@@ -527,7 +515,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}"
             
         elif postback_payload == 'OCR_TRANSLATE':
-            # 📌 يتم تمرير النص المستخرج إلى Grok4 للترجمة
+            # يتم تمرير النص المستخرج إلى Grok4 للترجمة
             is_arabic = any('\u0600' <= char <= '\u06FF' for char in extracted_text[:100])
             target_lang = "العربية" if not is_arabic else "الإنجليزية"
             
@@ -536,7 +524,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             response_text = f"🌐 **الترجمة إلى {target_lang}:**\n\n{translation}"
             
         elif postback_payload == 'OCR_ANALYZE':
-            # 📌 يتم تمرير النص المستخرج إلى Grok4 للتحليل
+            # يتم تمرير النص المستخرج إلى Grok4 للتحليل
             prompt = f"""حلل النص التالي واشرح محتواه بالتفصيل: 
 {extracted_text}
 قدم شرحاً مبسطاً ومفيداً للطالب."""
