@@ -6,6 +6,7 @@ from flask import Flask, request
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import logging
+import time # 👈 [التعديل 1: استيراد مكتبة الوقت]
 
 # ====================================================================
 # 📚 الإعدادات الأساسية
@@ -14,15 +15,16 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
-# 🔑 رمز الوصول لصفحة فيسبوك
+# 🔑 رمز الوصول لصفحة فيسبوك - يفضل وضعه كمتغير بيئة
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
+# ⚠️ ملاحظة: يفضل تغيير هذا لمتغير بيئة لأمان أفضل
 PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
 # معلومات المطور
 DEVELOPER_NAME = "younes laldji"
 AI_ASSISTANT_NAME = "بويكتا"
 
-# 🌟 واجهات الذكاء الاصطناعي الخارجية (المتبقية) 🌟
+# 🌟 واجهات الذكاء الاصطناعي الخارجية 🌟
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
 FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' 
@@ -42,7 +44,6 @@ app = Flask(__name__)
 
 # ====================================================================
 # 🛠️ دوال الشبكة وإرسال الرسائل
-# ... (بقية دوال الشبكة كما هي) ...
 # ====================================================================
 
 def send_api_request(payload: Dict[str, Any]) -> bool:
@@ -124,14 +125,14 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
     send_api_request(payload)
 
 def send_attachment_and_note(recipient_id: str, attachment_type: str, url: str, success_text: str):
-    """**دالة جديدة: إرسال المرفق متبوعًا برسالة توضيحية**"""
+    """إرسال المرفق متبوعًا برسالة توضيحية"""
     
     # 1. محاولة إرسال المرفق مباشرة
     send_attachment(recipient_id, attachment_type, url)
     
     # 2. إرسال رسالة النجاح والملاحظة
     if attachment_type != 'audio': 
-        note = f"""
+        note = """
 **ملاحظة حول العرض (فقط لتطبيق فيسبوك لايت):**
 إذا لم تظهر الصورة/الفيديو، يرجى فتح الرسالة عبر **تطبيق فيسبوك ماسنجر** حيث تظهر المرفقات بشكل سليم.
 """
@@ -142,7 +143,7 @@ def send_attachment_and_note(recipient_id: str, attachment_type: str, url: str, 
 
 
 def get_main_menu_quick_replies() -> List[Dict[str, Any]]:
-    """**بناء أزرار القائمة الرئيسية المحدثة**"""
+    """بناء أزرار القائمة الرئيسية المحدثة"""
     return [
         {"content_type": "text", "title": "💬 محادثة جديدة", "payload": "MENU_NEW_CHAT"},
         {"content_type": "text", "title": "🖼️ إنشاء صورة", "payload": "MENU_CREATE_IMAGE_MAX"},
@@ -160,7 +161,6 @@ def send_menu_after_action(recipient_id: str, prompt: str):
 # 🧠 منطق الذكاء الاصطناعي والخدمات
 # ====================================================================
 
-# ... (دوال السياق) ...
 def get_conversation_history(user_id: str, limit: int = 5) -> List[Tuple[str, str]]:
     history = in_memory_conversations.get(user_id, [])
     return history[-limit:] if history else []
@@ -240,38 +240,47 @@ class AIModels:
 
     @staticmethod
     def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """**استدعاء OCR API (مع تنسيق الرابط كقائمة مفصولة بـ ", ")**"""
-        try:
-            # 📌 الحل: نرسل الروابط كقائمة مفصولة بـ ", " حتى لو كانت صورة واحدة
-            link_string = ""
-            if image_url:
-                 # استخدام ", ".join لتغليف الرابط الواحد في التنسيق المطلوب
-                link_string = ", ".join([image_url]) 
-            
-            payload = {"link": link_string, "text": instruction}
-            
-            # استخدام data=payload
-            response = requests.post(OCR_API, data=payload, timeout=60)
-            
-            if response.ok:
-                extracted_text = AIModels._clean_response(response.text)
+        """
+        **استدعاء OCR API (مع تنسيق الرابط كقائمة مفصولة بـ ", ") وتضمين منطق المحاولة الثانية**
+        [التعديل 2: تطبيق منطق المحاولة الثانية لتجاوز مشاكل صلاحية الرابط/الاتصال]
+        """
+        link_string = ", ".join([image_url]) if image_url else ""
+        payload = {"link": link_string, "text": instruction}
+        
+        # 📌 محاولة أولى وثانية لضمان استقرار الاتصال بالـ API
+        for attempt in range(2): 
+            try:
+                response = requests.post(OCR_API, data=payload, timeout=60)
                 
-                # معالجة رسائل الخطأ من الـ API
-                if 'Something went wrong' in extracted_text or 'Enter text + image' in extracted_text:
+                if response.ok:
+                    extracted_text = AIModels._clean_response(response.text)
+                    
+                    # إذا نجح الرد وليس فيه خطأ الـ API المعتاد
+                    if 'Something went wrong' not in extracted_text and 'Enter text + image' not in extracted_text and extracted_text:
+                        return extracted_text
+                    
+                    # إذا فشل في المحاولة الأولى وظل الرد خطأ، جرب مرة أخرى
+                    if attempt == 0:
+                        time.sleep(2) # انتظار ثانيتين قبل المحاولة الثانية
+                        continue
+                    
+                    # فشل في كلتا المحاولتين
                     return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة. (الخطأ: {extracted_text[:50]}...)"
-                
-                if not extracted_text:
-                    return "❌ فشل استخراج النص: لا يوجد نص في الرد."
-                return extracted_text
-            else:
-                return f"❌ خطأ في OCR API (رمز: {response.status_code})"
-        except Exception as e:
-            logger.error(f"OCR Exception: {e}")
-            return "❌ فشل الاتصال بخدمة OCR."
+                else:
+                    # إذا كان الرد HTTP غير 200
+                    return f"❌ خطأ في OCR API (رمز: {response.status_code})"
+            except Exception as e:
+                logger.error(f"OCR Exception: {e}")
+                if attempt == 0:
+                    time.sleep(2)
+                    continue
+                return "❌ فشل الاتصال بخدمة OCR."
+        
+        return "❌ فشل في الاتصال بالخدمة بعد عدة محاولات." # Fallback
 
     @staticmethod
     def create_image_ai(prompt: str) -> Optional[str]:
-        """**إنشاء الصور (Flux Max فقط) (يستخدم data=)**"""
+        """إنشاء الصور (Flux Max فقط) (يستخدم data=)"""
         try:
             english_prompt = AIModels._translate_to_english(prompt)
             payload = {'prompt': english_prompt} 
@@ -290,7 +299,7 @@ class AIModels:
 
     @staticmethod
     def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
-        """**تحرير الصور (يستخدم data=)**"""
+        """تحرير الصور (يستخدم data=)"""
         english_desc = AIModels._translate_to_english(edit_desc)
         try:
             payload = {'prompt': english_desc, 'image': image_url} 
@@ -306,7 +315,7 @@ class AIModels:
     
     @staticmethod
     def create_music_ai(prompt: str) -> Optional[str]:
-        """**إنشاء موسيقى (يستخدم data=)**"""
+        """إنشاء موسيقى (يستخدم data=)"""
         try:
             payload = {'text': prompt}
             response = requests.post(MUSIC_API, data=payload, timeout=90) 
@@ -326,9 +335,8 @@ class AIModels:
 # 🎯 منطق معالجة الرسائل والأحداث
 # ====================================================================
 
-# ... (دوال get_user_first_name, send_welcome_and_guidance, handle_user_message) ...
 def get_user_first_name(sender_id: str) -> str:
-    # دالة جلب الاسم (تم الإبقاء عليها كما هي)
+    # دالة جلب الاسم
     try:
         user_info = requests.get(
             f"https://graph.facebook.com/v19.0/{sender_id}",
@@ -339,14 +347,14 @@ def get_user_first_name(sender_id: str) -> str:
         return 'مستخدم'
 
 def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu=True):
-    """إرسال رسالة ترحيب وشرح للمستخدم الجديد (تم التحديث)"""
+    """إرسال رسالة ترحيب وشرح للمستخدم الجديد"""
     
     if user_state[recipient_id]['first_time']:
         welcome_text = f"""👋 أهلاً بك يا **{first_name}**! أنا {AI_ASSISTANT_NAME}.
 
 🌟 **كيف أساعدك؟ (الخدمات المتاحة):**
-* **🖼️ إنشاء صور:** (النموذج العادي) أرسل وصفك وسأحولهُ إلى صورة.
-* **🎵 إنشاء موسيقى:** أنشئ مقطوعة موسيقية مدتها 15 ثانية بوصف بسيط (يعمل بشكل جيد ✅).
+* **🖼️ إنشاء صور:** أرسل وصفك وسأحولهُ إلى صورة.
+* **🎵 إنشاء موسيقى:** أنشئ مقطوعة موسيقية مدتها 15 ثانية بوصف بسيط.
 * **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله.
 * **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء.
 
@@ -425,7 +433,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     
     if attachment_type == 'image':
         
-        # 📌 بناء الرابط المحسن بـ access_token (مطلوب لتمكين الـ OCR API من الوصول)
+        # بناء الرابط المحسن بـ access_token (مطلوب لتمكين الـ OCR API من الوصول)
         image_url_for_api = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
         
         current_state = user_state[sender_id]['state']
@@ -437,7 +445,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             return
 
         elif current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
-            # 📌 الإصلاح: نحفظ الرابط ونعرض الأزرار مباشرة
+            # نحفظ الرابط ونعرض الأزرار مباشرة
             user_state[sender_id]['state'] = 'WAITING_OCR_COMMAND' # حالة جديدة: انتظار أمر OCR
             user_state[sender_id]['pending_url'] = image_url_for_api # حفظ الرابط المحسن
             
@@ -445,8 +453,8 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             
             buttons = [
                 {"type": "postback", "title": "📝 استخراج النص فقط", "payload": "OCR_SHOW_TEXT"}, 
-                {"type": "postback", "title": "🌐 استخراج وترجمة", "payload": "OCR_TRANSLATE_EXEC"}, # تم تغيير الحمولة
-                {"type": "postback", "title": "💡 استخراج وشرح/تحليل", "payload": "OCR_ANALYZE_EXEC"}, # تم تغيير الحمولة
+                {"type": "postback", "title": "🌐 استخراج وترجمة", "payload": "OCR_TRANSLATE_EXEC"}, 
+                {"type": "postback", "title": "💡 استخراج وشرح/تحليل", "payload": "OCR_ANALYZE_EXEC"}, 
             ]
             send_button_template(sender_id, text, buttons)
             
@@ -507,7 +515,7 @@ def handle_postback(sender_id: str, postback_payload: str):
     # 6. خيارات OCR/التحليل (المعالجة الفورية)
     elif postback_payload in ['OCR_SHOW_TEXT', 'OCR_TRANSLATE_EXEC', 'OCR_ANALYZE_EXEC']:
         
-        # 📌 الخطوة الحاسمة: المعالجة الفورية لـ OCR
+        # الخطوة الحاسمة: المعالجة الفورية لـ OCR
         
         image_url = user_state[sender_id].pop('pending_url', None)
         if not image_url:
@@ -527,6 +535,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             instruction = ""
 
         # إرسال طلب واحد إلى OCR API (الذي يقوم بالاستخراج والتنفيذ)
+        # 💡 تم تحديث دالة call_ocr_api لتشمل منطق المحاولة الثانية
         response_text = AIModels.call_ocr_api(image_url, instruction)
         
         if response_text and not response_text.startswith("❌"):
@@ -570,7 +579,6 @@ def webhook():
                     if message.get('quick_reply'):
                         handle_postback(sender_id, message['quick_reply']['payload'])
                     else:
-                        # لا توجد حالة انتظار نص هنا، كل شيء يعود للمحادثة العادية
                         handle_user_message(sender_id, message_text)
                 
                 # ب. معالجة المرفقات (Attachment)
@@ -589,7 +597,7 @@ def webhook():
         return 'OK', 200
 
 # ====================================================================
-# 🚀 تشغيل التطبيق (باستخدام Gunicorn عند النشر)
+# 🚀 تشغيل التطبيق
 # ====================================================================
 
 if __name__ == '__main__':
