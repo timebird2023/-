@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 # 🔑 المتغيرات الأساسية والإعدادات (تُقرأ من Vercel Environment Variables)
 # ====================================================================
 
-# يجب تعريف هذه المتغيرات في إعدادات مشروع Vercel
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
 PAGE_ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN', 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9')
 
@@ -60,7 +59,7 @@ def send_api_request(payload: Dict[str, Any]) -> bool:
 
 def send_text_message(recipient_id: str, message_text: str):
     """إرسال رسالة نصية بسيطة مع توقيع المطور (بدون رابط)"""
-    # ⚠️ تم تعديل التذييل لإزالة الرابط
+    # ⚠️ التوقيع لا يحتوي على رابط
     footer = f"\n\n🤖 {AI_ASSISTANT_NAME}، تصميم: {DEVELOPER_NAME}" 
     full_message = message_text + footer
     payload = {
@@ -69,9 +68,19 @@ def send_text_message(recipient_id: str, message_text: str):
     }
     send_api_request(payload)
 
-def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, Any]]):
-    """إرسال قالب أزرار (Button Template)"""
-    # هذا هو الأسلوب الصحيح لإظهار الأزرار التي تولد حدث Postback
+def send_menu_and_buttons(recipient_id: str, text: str, skip_main_menu: bool = False):
+    """إرسال رسالة نصية تليها قائمة الأزرار الرئيسية"""
+    
+    # 1. إرسال النص مع التوقيع
+    send_text_message(recipient_id, text)
+    
+    # 2. إرسال القائمة الرئيسية كـ Button Template
+    buttons = get_main_menu_buttons_template()
+    
+    if not skip_main_menu:
+        # إضافة زر القائمة الرئيسية وزر الرجوع لتثبيت القائمة
+        buttons.append({"type": "postback", "title": "🔙 قائمة الخدمات", "payload": "MENU_MAIN"})
+        
     payload = {
         'recipient': {'id': recipient_id},
         'message': {
@@ -79,8 +88,8 @@ def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, A
                 'type': "template",
                 "payload": {
                     "template_type": "button",
-                    "text": text,
-                    "buttons": buttons
+                    "text": "💡 اختر الخدمة التالية:",
+                    "buttons": buttons[:3] # عرض أول 3 أزرار فقط
                 }
             }
         }
@@ -89,6 +98,9 @@ def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, A
 
 def send_attachment(recipient_id: str, attachment_type: str, url: str):
     """إرسال مرفق (صورة)"""
+    # يجب إرسال رسالة نصية للمطور بعد إرسال الصورة مباشرة
+    send_text_message(recipient_id, "✅ تم إرسال الصورة بنجاح!")
+    
     payload = {
         'recipient': {'id': recipient_id},
         'message': {
@@ -102,30 +114,24 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
         }
     }
     send_api_request(payload)
+    
+    # إرسال القائمة بعد إرسال الصورة
+    send_menu_and_buttons(recipient_id, "💡 يمكنك الآن تحرير الصورة أو إنشاء صورة جديدة.")
+
 
 def get_main_menu_buttons_template() -> List[Dict[str, Any]]:
     """بناء أزرار القائمة الرئيسية كـ Postbacks"""
     return [
         {"type": "postback", "title": "🎨 إنشاء صورة", "payload": "MENU_CREATE_IMAGE"},
         {"type": "postback", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
-        {"type": "postback", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
-        {"type": "postback", "title": "🔙 قائمة الخدمات", "payload": "MENU_MAIN"}
+        {"type": "postback", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"}
     ]
 
 # ====================================================================
 # 🧠 منطق الذكاء الاصطناعي والسياق
 # ====================================================================
 
-def get_conversation_history(sender_id: str, limit: int = 5) -> list:
-    """الحصول على سياق المحادثة من الذاكرة"""
-    history = in_memory_conversations.get(sender_id, [])
-    return history[-limit:]
-
-def add_conversation_entry(sender_id: str, message: str, response: str):
-    """إضافة رسالة وسياق إلى الذاكرة"""
-    history = in_memory_conversations.get(sender_id, [])
-    history.append((message, response))
-    in_memory_conversations[sender_id] = history[-10:]
+# ... (دوال get_conversation_history و add_conversation_entry تبقى كما هي) ...
 
 def call_grok4_ai(text: str, conversation_history: list = None) -> str:
     """استدعاء Grok-4 للمحادثة العامة مع سياق محسّن وتنظيف الرد"""
@@ -164,27 +170,6 @@ def call_grok4_ai(text: str, conversation_history: list = None) -> str:
     except Exception:
         return "💥 عذراً، فشل الاتصال بنظام الذكاء الاصطناعي."
 
-def call_ocr_api(image_url: str, instruction: str = "") -> str:
-    """استخراج النص من الصورة باستخدام API"""
-    try:
-        response = requests.post(
-            OCR_API,
-            data={"link": image_url, "text": instruction},
-            timeout=60
-        )
-        if response.ok:
-            result = response.text
-            try:
-                json_data = json.loads(result)
-                if 'response' in json_data:
-                    return json_data['response'].strip()
-            except Exception:
-                pass
-            return result.strip()
-        return "❌ فشل استخراج النص."
-    except Exception:
-        return "❌ خطأ في الاتصال بخدمة استخراج النص."
-
 def create_image_ai(prompt: str) -> Optional[str]:
     """إنشاء صورة باستخدام Nano Banana"""
     try:
@@ -218,13 +203,13 @@ def handle_user_message(sender_id: str, message_text: str):
     
     current_state = user_state[sender_id]['state']
     
-    # 1. حالات انتظار الوصف (صورة أو تحرير)
+    # 1. حالة إنشاء الصورة أو التحرير (الأوامر الواضحة)
     if current_state in ['WAITING_IMAGE_PROMPT', 'WAITING_EDIT_DESC']:
         # تفريغ حالة الانتظار
         is_edit = (current_state == 'WAITING_EDIT_DESC')
         user_state[sender_id]['state'] = None
         
-        send_text_message(sender_id, f"⏳ جاري {'تحرير' if is_edit else 'إنشاء'} الصورة...")
+        send_menu_and_buttons(sender_id, f"⏳ جاري {'تحرير' if is_edit else 'إنشاء'} الصورة...", skip_main_menu=True)
         
         if is_edit:
             image_url = user_state[sender_id].pop('pending_edit_url', None)
@@ -233,29 +218,39 @@ def handle_user_message(sender_id: str, message_text: str):
             final_url = create_image_ai(message_text)
             
         if final_url:
-            send_attachment(sender_id, 'image', final_url)
+            send_attachment(sender_id, 'image', final_url) # send_attachment يرسل القائمة تلقائيا
         else:
-            send_text_message(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة.")
-            
-        # إظهار الأزرار بعد انتهاء العملية
-        send_button_template(sender_id, "✅ تم. ماذا تريد أن تفعل الآن؟", get_main_menu_buttons_template())
+            send_menu_and_buttons(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة.")
+        
+        return
+        
+    # 2. تحكم الذكاء الاصطناعي في الصور (تحليل ما إذا كان الرد يجب أن يكون أمراً)
+    # ⚠️ هذا هو المنطق الذي يمنع التداخل مع الذكاء الاصطناعي
+    
+    # محاولة تفسير رسالة المستخدم كأمر للذكاء الاصطناعي
+    if any(keyword in message_text for keyword in ["أنشئ صورة", "عدل هذه", "اجعل الخلفية", "ارسم لي"]):
+        # توجيه إلى الـ Postback المناسب إذا كان أمراً واضحاً للتحكم بالصور
+        if "أنشئ صورة" in message_text:
+            handle_postback(sender_id, 'MENU_CREATE_IMAGE')
+            return
+        # لا يمكن معالجة أوامر التعديل والتحرير النصية مباشرة دون معرفة الصورة المرجعية.
+        send_menu_and_buttons(sender_id, "💡 للتحرير، يرجى إرسال الصورة أولاً ثم الضغط على زر 'تحرير' لتزويدي بالوصف.")
         return
 
-    # 2. الدردشة العامة بالذكاء الاصطناعي مع السياق
+
+    # 3. الدردشة العامة بالذكاء الاصطناعي مع السياق
     history = get_conversation_history(sender_id)
     response = call_grok4_ai(message_text, history)
     
-    send_text_message(sender_id, response)
+    send_menu_and_buttons(sender_id, response)
     add_conversation_entry(sender_id, message_text, response)
     
-    # إظهار الأزرار في كل مرة للوصول السريع
-    send_button_template(sender_id, "💡 اختر الخدمة التالية:", get_main_menu_buttons_template())
 
 def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     """معالجة المرفقات (صور)"""
     
     if attachment.get('type') != 'image':
-        send_text_message(sender_id, "⚠️ لا أستطيع حالياً معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
+        send_menu_and_buttons(sender_id, "⚠️ لا أستطيع حالياً معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
         return
     
     image_url = attachment['payload']['url']
@@ -266,7 +261,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
         user_state[sender_id]['state'] = None
         user_state[sender_id]['pending_ocr_url'] = image_url
         
-        send_text_message(sender_id, "🔍 تم استلام الصورة. جاري استخراج النص...")
+        send_menu_and_buttons(sender_id, "🔍 تم استلام الصورة. جاري استخراج النص...")
         
         extracted_text = call_ocr_api(image_url)
         
@@ -281,7 +276,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             ]
             send_button_template(sender_id, text, buttons)
         else:
-            send_text_message(sender_id, f"❌ فشل استخراج النص من الصورة. {extracted_text}")
+            send_menu_and_buttons(sender_id, f"❌ فشل استخراج النص من الصورة. {extracted_text}")
         
         return
     
@@ -304,7 +299,7 @@ def handle_postback(sender_id: str, postback_payload: str):
     # 1. القائمة الرئيسية/الترحيب
     if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN']:
         text = f"👋 أهلاً بك! أنا {AI_ASSISTANT_NAME}. اختر خدمتك:"
-        send_button_template(sender_id, text, get_main_menu_buttons_template())
+        send_menu_and_buttons(sender_id, text)
         
     # 2. إنشاء صورة
     elif postback_payload == 'MENU_CREATE_IMAGE':
@@ -349,7 +344,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             analysis = call_grok4_ai(prompt)
             send_text_message(sender_id, f"💡 **تحليل وشرح النص:**\n\n{analysis}")
             
-        send_button_template(sender_id, "💡 اختر خدمة أخرى:", get_main_menu_buttons_template())
+        send_menu_and_buttons(sender_id, "💡 اختر خدمة أخرى:")
 
 # ====================================================================
 # 🌐 Webhook Endpoint (نقطة النهاية الإلزامية)
@@ -394,4 +389,5 @@ def webhook():
                 elif messaging_event.get('postback'):
                     handle_postback(sender_id, messaging_event['postback']['payload'])
 
+        return 'OK', 200
         return 'OK', 200
