@@ -9,17 +9,16 @@ from collections import defaultdict
 import logging
 
 # 🚨 يجب أن يحتوي requirements.txt على: Flask, requests
-# هذا الكود جاهز للاستخدام في بيئة Vercel Serverless
 
 # إعداد الـ Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # ====================================================================
-# 🔑 المتغيرات الأساسية والإعدادات (تُقرأ من Vercel Environment Variables)
+# 🔑 المتغيرات الأساسية والإعدادات
 # ====================================================================
 
-# يجب تعريف هذه المتغيرات في إعدادات مشروع Vercel
+# تُقرأ من Vercel Environment Variables
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
 PAGE_ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN', 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9')
 
@@ -72,6 +71,7 @@ def send_text_message(recipient_id: str, message_text: str):
 
 def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, Any]]):
     """إرسال قالب أزرار (Button Template)"""
+    # هذا هو الأسلوب الصحيح لإظهار الأزرار التي تولد حدث Postback
     payload = {
         'recipient': {'id': recipient_id},
         'message': {
@@ -127,10 +127,12 @@ def send_menu_after_action(recipient_id: str, prompt: str):
 # ====================================================================
 
 def get_conversation_history(sender_id: str, limit: int = 5) -> list:
+    """الحصول على سياق المحادثة من الذاكرة"""
     history = in_memory_conversations.get(sender_id, [])
     return history[-limit:]
 
 def add_conversation_entry(sender_id: str, message: str, response: str):
+    """إضافة رسالة وسياق إلى الذاكرة"""
     history = in_memory_conversations.get(sender_id, [])
     history.append((message, response))
     in_memory_conversations[sender_id] = history[-10:]
