@@ -16,29 +16,39 @@ logger = logging.getLogger(__name__)
 
 # 🔑 رمز الوصول لصفحة فيسبوك
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
-PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
+PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
 # معلومات المطور
 DEVELOPER_NAME = "younes laldji"
 AI_ASSISTANT_NAME = "بويكتا"
 
-# واجهات الذكاء الاصطناعي الخارجية (المعتمدة على requests)
+# 🌟 واجهات الذكاء الاصطناعي الخارجية (المحدّثة والمضافة) 🌟
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
-NANO_BANANA_API = 'https://sii3.top/api/nano-banana.php' # لإنشاء وتحرير الصور (المحاولة الثانية للتحرير)
-FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' # لتحرير الصور (المحاولة الأولى)
 
-# الذاكرة المؤقتة وحالة المستخدم (بديل SQLite)
-user_state: Dict[str, Dict[str, Any]] = defaultdict(lambda: {'state': None, 'first_time': True, 'pending_url': None, 'last_extracted_text': None})
-# يخزن آخر 10 رسائل لكل مستخدم (كحد أقصى)
+# خدمات الصور
+FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' # لإنشاء وتحرير الصور (النموذج القديم)
+FLUX_PRO_API = 'https://sii3.top/api/flux-pro.php' # لإنشاء صور فائقة الواقعية (النموذج الجديد Flux-pro-20.1)
+
+# خدمات الفيديو والموسيقى
+VEO3_API = 'https://sii3.top/api/veo3.php' # لتحويل النص/الصورة إلى فيديو (مع دعم الصوت)
+MUSIC_API = 'https://sii3.top/api/create-music.php' # لإنشاء موسيقى
+
+# الذاكرة المؤقتة وحالة المستخدم
+user_state: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
+    'state': None, 
+    'first_time': True, 
+    'pending_url': None, 
+    'last_extracted_text': None,
+    'video_type': None # لحالة الفيديو (نص أو صورة)
+})
 in_memory_conversations: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
 
 app = Flask(__name__)
 
 # ====================================================================
-# 🛠️ دوال الشبكة وإرسال الرسائل
+# 🛠️ دوال الشبكة وإرسال الرسائل (تم الإبقاء عليها كما هي)
 # ====================================================================
-
 def send_api_request(payload: Dict[str, Any]) -> bool:
     """دالة عامة لإرسال طلب إلى Messenger Send API"""
     params = {'access_token': PAGE_ACCESS_TOKEN}
@@ -102,7 +112,7 @@ def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, A
     send_api_request(payload)
 
 def send_attachment(recipient_id: str, attachment_type: str, url: str):
-    """إرسال مرفق (صورة)"""
+    """إرسال مرفق (صورة، فيديو)"""
     payload = {
         'recipient': {'id': recipient_id},
         'message': {
@@ -118,12 +128,30 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
     send_api_request(payload)
 
 def get_main_menu_quick_replies() -> List[Dict[str, Any]]:
-    """بناء أزرار القائمة الرئيسية كـ Quick Replies"""
+    """**بناء أزرار القائمة الرئيسية المحدثة**"""
     return [
         {"content_type": "text", "title": "💬 محادثة جديدة", "payload": "MENU_NEW_CHAT"},
-        {"content_type": "text", "title": "🎨 إنشاء صورة", "payload": "MENU_CREATE_IMAGE"},
-        {"content_type": "text", "title": "📝 تحليل الصور", "payload": "MENU_OCR_START"},
+        {"content_type": "text", "title": "🖼️ إنشاء صور (فلوكس)", "payload": "MENU_IMAGE_CREATION"}, # زر فرعي جديد
+        {"content_type": "text", "title": "🎬 تحويل إلى فيديو", "payload": "MENU_VIDEO_START"}, # زر فرعي جديد
+        {"content_type": "text", "title": "🎵 إنشاء موسيقى", "payload": "MENU_MUSIC_START"},
+        {"content_type": "text", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
         {"content_type": "text", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
+        {"content_type": "text", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"}
+    ]
+
+def get_image_creation_quick_replies() -> List[Dict[str, Any]]:
+    """**أزرار إنشاء الصور الفرعية**"""
+    return [
+        {"content_type": "text", "title": "⭐ فائق الواقعية (Pro)", "payload": "CREATE_IMAGE_PRO"},
+        {"content_type": "text", "title": "🎨 عادي (Flux Max)", "payload": "CREATE_IMAGE_MAX"},
+        {"content_type": "text", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"}
+    ]
+
+def get_video_creation_quick_replies() -> List[Dict[str, Any]]:
+    """**أزرار إنشاء الفيديو الفرعية**"""
+    return [
+        {"content_type": "text", "title": "✍️ نص إلى فيديو", "payload": "VIDEO_TEXT_TO_VIDEO"},
+        {"content_type": "text", "title": "🖼️ صورة إلى فيديو", "payload": "VIDEO_IMAGE_TO_VIDEO"},
         {"content_type": "text", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"}
     ]
 
@@ -132,36 +160,36 @@ def send_menu_after_action(recipient_id: str, prompt: str):
     send_quick_replies(recipient_id, prompt, get_main_menu_quick_replies())
 
 # ====================================================================
-# 🧠 منطق الذكاء الاصطناعي والخدمات
+# 🧠 منطق الذكاء الاصطناعي والخدمات (تم تحديث دوال إنشاء الصور وإضافة دوال الفيديو والموسيقى)
 # ====================================================================
 
-# دوال السياق (تستخدم الذاكرة المؤقتة فقط)
+# دوال السياق (تم الإبقاء عليها كما هي)
 def get_conversation_history(user_id: str, limit: int = 5) -> List[Tuple[str, str]]:
     """استرجاع سجل المحادثة (آخر 5 رسائل)"""
     history = in_memory_conversations.get(user_id, [])
-    # يتم استرجاع آخر limit عنصر
     return history[-limit:] if history else []
 
 def add_conversation_entry(user_id: str, message: str, response: str):
     """إضافة رسالة ورد إلى سجل المحادثة (الذاكرة المؤقتة)"""
     in_memory_conversations[user_id].append((message, response))
-    # الحفاظ على حجم السجل بحد أقصى 10
     if len(in_memory_conversations[user_id]) > 10:
         in_memory_conversations[user_id] = in_memory_conversations[user_id][-10:]
 
-# دوال الخدمات
+# دوال الخدمات (AIModels)
 class AIModels:
     @staticmethod
     def _clean_response(text: str) -> str:
         """تنظيف الردود من JSON والرموز غير المرغوب فيها"""
         try:
             try:
+                # محاولة استخراج 'response' إذا كان الرد JSON
                 json_data = json.loads(text)
                 if isinstance(json_data, dict) and 'response' in json_data:
                     text = json_data['response']
             except json.JSONDecodeError:
                 pass
             
+            # تنظيف الرسائل الترويجية والرموز
             text = re.sub(r'Don\'t forget to support.*', '', text, flags=re.IGNORECASE)
             text = re.sub(r'@\w+', '', text) 
             text = re.sub(r'\\n', '\n', text)
@@ -170,130 +198,6 @@ class AIModels:
             return text.strip()
         except Exception:
             return text.strip()
-
-    @staticmethod
-    def grok4(text: str, conversation_history: list = None) -> str:
-        """استدعاء Grok-4 للمحادثة العامة مع سياق محسّن"""
-        prompt = text
-        if conversation_history:
-            # يتم بناء سياق المحادثة من آخر 5 مدخلات
-            context = "\n".join([f"المستخدم: {msg}\nالمساعد: {resp}" for msg, resp in conversation_history[-5:]])
-            prompt = f"سياق المحادثة السابقة:\n{context}\n\nالسؤال الحالي: {text}"
-
-        try:
-            # GROK API uses 'data' (form-urlencoded)
-            response = requests.post(GROK_API_URL, data={'text': prompt}, timeout=60)
-            if response.ok:
-                return AIModels._clean_response(response.text)
-            else:
-                return f"⚠️ خطأ في Grok-4 API (رمز: {response.status_code})"
-        except Exception:
-            return "💥 عذراً، فشل الاتصال بنظام الذكاء الاصطناعي."
-
-    @staticmethod
-    def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """استدعاء OCR API لاستخراج النص من الصورة فقط (تم التعديل لاستخدام json)"""
-        try:
-            payload = {"link": image_url, "text": instruction}
-            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
-            response = requests.post(OCR_API, json=payload, timeout=60)
-            if response.ok:
-                try:
-                    result_json = response.json()
-                except json.JSONDecodeError:
-                    # قد يكون الرد ليس JSON صالحاً، نتعامل معه كنص عادي
-                    extracted_text = response.text
-                else:
-                    extracted_text = result_json.get('response', '')
-                
-                # --- [التصحيح المطبق: معالجة رسالة الخطأ المحددة] ---
-                error_message = "Something went wrong. Please try again."
-                if extracted_text and error_message in extracted_text:
-                    logger.error(f"OCR API returned specific error: {extracted_text}")
-                    # إرسال رسالة خطأ واضحة بدلاً من النص غير المرغوب فيه
-                    return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة أو محاولة صورة أخرى. (الخطأ: {error_message})"
-                # ----------------------------------------------------
-                
-                if not extracted_text:
-                    return "❌ فشل استخراج النص: لا يوجد نص في الرد."
-                return extracted_text.replace('\\n', '\n').strip()
-            else:
-                return f"❌ خطأ في OCR API (رمز: {response.status_code})"
-        except Exception as e:
-            logger.error(f"OCR Exception: {e}")
-            return "❌ فشل الاتصال بخدمة OCR."
-
-    @staticmethod
-    def create_image_ai(prompt: str) -> Optional[str]:
-        """استدعاء API لإنشاء الصور (Nano-Banana) مع ترجمة الوصف (تم التعديل لاستخدام json)"""
-        try:
-            english_prompt = AIModels._translate_to_english(prompt)
-            payload = {'text': english_prompt}
-            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
-            response = requests.post(NANO_BANANA_API, json=payload, timeout=90) 
-            
-            if response.ok:
-                try:
-                    data = response.json()
-                    # بحث مرن عن الرابط
-                    image_url = data.get('url') or data.get('image') 
-                    
-                    if image_url and 'http' in image_url: # التأكد من أنه رابط صالح
-                        return image_url
-                    
-                    logger.error(f"Nano-Banana Create Failed: No valid URL found in response data: {data}")
-                    return None
-                except json.JSONDecodeError:
-                    logger.error(f"Nano-Banana Create Failed: Invalid JSON response: {response.text}")
-                    return None
-            else:
-                logger.error(f"Nano-Banana Create API Error (Status: {response.status_code}): {response.text}")
-                return None
-        except Exception as e:
-            logger.error(f"Image Create Exception: {e}")
-            return None
-
-    @staticmethod
-    def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
-        """استدعاء API لتحرير الصور (Flux-Max أولاً، ثم Nano-Banana) مع ترجمة الوصف (تم التعديل لاستخدام json)"""
-        english_desc = AIModels._translate_to_english(edit_desc)
-
-        # 1. محاولة Flux-Max (الخدمة المحدثة)
-        try:
-            payload = {'prompt': english_desc, 'image': image_url} 
-            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
-            response = requests.post(FLUX_MAX_API, json=payload, timeout=90)
-            if response.ok:
-                try:
-                    data = response.json()
-                    flux_url = data.get('url')
-                    if flux_url and 'http' in flux_url:
-                        return flux_url
-                except json.JSONDecodeError:
-                    logger.warning(f"Flux-Max returned non-JSON/invalid response: {response.text}")
-                    pass 
-        except Exception:
-            logger.warning("Flux-Max edit failed, falling back to Nano-Banana")
-            
-        # 2. محاولة Nano-Banana (المحاولة الاحتياطية)
-        try:
-            payload = {'text': english_desc, 'links': image_url}
-            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
-            response = requests.post(NANO_BANANA_API, json=payload, timeout=90)
-            if response.ok:
-                try:
-                    data = response.json()
-                    nano_url = data.get('url') or data.get('image')
-                    if nano_url and 'http' in nano_url:
-                        return nano_url
-                except json.JSONDecodeError:
-                    logger.warning(f"Nano-Banana Edit returned non-JSON/invalid response: {response.text}")
-                    pass
-        except Exception as e:
-            logger.error(f"Nano-Banana Edit Exception: {e}")
-            return None
-        
-        return None
 
     @staticmethod
     def _translate_to_english(text: str) -> str:
@@ -311,13 +215,171 @@ class AIModels:
         except Exception:
             pass
         return text
+    
+    @staticmethod
+    def grok4(text: str, conversation_history: list = None) -> str:
+        """استدعاء Grok-4 للمحادثة العامة مع سياق محسّن (تم الإبقاء عليها كما هي)"""
+        prompt = text
+        if conversation_history:
+            context = "\n".join([f"المستخدم: {msg}\nالمساعد: {resp}" for msg, resp in conversation_history[-5:]])
+            prompt = f"سياق المحادثة السابقة:\n{context}\n\nالسؤال الحالي: {text}"
+
+        try:
+            response = requests.post(GROK_API_URL, data={'text': prompt}, timeout=60)
+            if response.ok:
+                return AIModels._clean_response(response.text)
+            else:
+                return f"⚠️ خطأ في Grok-4 API (رمز: {response.status_code})"
+        except Exception:
+            return "💥 عذراً، فشل الاتصال بنظام الذكاء الاصطناعي."
+
+    @staticmethod
+    def call_ocr_api(image_url: str, instruction: str = "") -> str:
+        """استدعاء OCR API (تم الإبقاء عليها كما هي)"""
+        try:
+            payload = {"link": image_url, "text": instruction}
+            response = requests.post(OCR_API, json=payload, timeout=60)
+            if response.ok:
+                try:
+                    result_json = response.json()
+                except json.JSONDecodeError:
+                    extracted_text = response.text
+                else:
+                    extracted_text = result_json.get('response', '')
+                
+                error_message = "Something went wrong. Please try again."
+                if extracted_text and error_message in extracted_text:
+                    logger.error(f"OCR API returned specific error: {extracted_text}")
+                    return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة أو محاولة صورة أخرى. (الخطأ: {error_message})"
+                
+                if not extracted_text:
+                    return "❌ فشل استخراج النص: لا يوجد نص في الرد."
+                return extracted_text.replace('\\n', '\n').strip()
+            else:
+                return f"❌ خطأ في OCR API (رمز: {response.status_code})"
+        except Exception as e:
+            logger.error(f"OCR Exception: {e}")
+            return "❌ فشل الاتصال بخدمة OCR."
+
+    @staticmethod
+    def create_image_ai(prompt: str, api_url: str) -> Optional[str]:
+        """**دالة موحدة لإنشاء الصور (Flux-Pro و Flux-Max)**"""
+        try:
+            # Flux APIs تستخدم 'text' في POST لـ Flux-Pro وتستخدم 'prompt' لـ Flux-Max
+            key = 'text' if api_url == FLUX_PRO_API else 'prompt'
+            english_prompt = AIModels._translate_to_english(prompt)
+            
+            payload = {key: english_prompt}
+            # استخدام json=payload للتوافق مع POST الجديد
+            response = requests.post(api_url, json=payload, timeout=90) 
+            
+            if response.ok:
+                try:
+                    data = response.json()
+                    # بحث مرن عن الرابط: 'url' أو 'image'
+                    image_url = data.get('url') or data.get('image') 
+                    
+                    if image_url and 'http' in image_url:
+                        return image_url
+                    
+                    logger.error(f"Image Creation Failed: No valid URL found in response data: {data}")
+                    return None
+                except json.JSONDecodeError:
+                    logger.error(f"Image Creation Failed: Invalid JSON response: {response.text}")
+                    return None
+            else:
+                logger.error(f"Image Creation API Error (Status: {response.status_code}): {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"Image Creation Exception: {e}")
+            return None
+
+    @staticmethod
+    def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
+        """**استدعاء Flux-Max لتحرير الصور (حصراً)**"""
+        english_desc = AIModels._translate_to_english(edit_desc)
+
+        try:
+            # Flux-Max API يستخدم 'prompt' و 'image' في POST
+            payload = {'prompt': english_desc, 'image': image_url} 
+            response = requests.post(FLUX_MAX_API, json=payload, timeout=90)
+            if response.ok:
+                try:
+                    data = response.json()
+                    flux_url = data.get('url') or data.get('image')
+                    if flux_url and 'http' in flux_url:
+                        return flux_url
+                except json.JSONDecodeError:
+                    logger.warning(f"Flux-Max returned non-JSON/invalid response: {response.text}")
+                    pass
+        except Exception as e:
+            logger.error(f"Flux-Max Edit Exception: {e}")
+            return None
+        
+        return None
+    
+    @staticmethod
+    def create_video_ai(prompt: str, image_url: Optional[str] = None) -> Optional[str]:
+        """**إنشاء فيديو (نص إلى فيديو أو صورة إلى فيديو)**"""
+        try:
+            # VEO3 API يستخدم 'text' و 'link' (اختياري للصورة)
+            payload = {'text': prompt}
+            if image_url:
+                payload['link'] = image_url
+            
+            response = requests.post(VEO3_API, json=payload, timeout=120) 
+            
+            if response.ok:
+                try:
+                    data = response.json()
+                    video_url = data.get('url') or data.get('video')
+                    
+                    if video_url and 'http' in video_url:
+                        return video_url
+                except json.JSONDecodeError:
+                    logger.error(f"VEO3 Failed: Invalid JSON response: {response.text}")
+                    return None
+            else:
+                logger.error(f"VEO3 API Error (Status: {response.status_code}): {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"VEO3 Exception: {e}")
+            return None
+
+    @staticmethod
+    def create_music_ai(prompt: str) -> Optional[str]:
+        """**إنشاء موسيقى (نص إلى موسيقى)**"""
+        try:
+            # MUSIC API يستخدم 'text' في POST (وفقًا للمثال: curl -X POST "..." -d "text=love")
+            payload = {'text': prompt}
+            response = requests.post(MUSIC_API, data=payload, timeout=90) 
+            
+            if response.ok:
+                try:
+                    # يجب أن يكون الرد هو رابط مباشر للملف الصوتي
+                    music_url = response.text.strip()
+                    if music_url and 'http' in music_url and music_url.endswith(('.mp3', '.wav', '.ogg')):
+                        return music_url
+                    
+                    logger.error(f"Music Creation Failed: Not a valid URL: {music_url}")
+                    return None
+                except Exception:
+                    logger.error(f"Music Creation Failed: Response not a valid URL: {response.text}")
+                    return None
+            else:
+                logger.error(f"Music Creation API Error (Status: {response.status_code}): {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"Music Creation Exception: {e}")
+            return None
+        
 
 # ====================================================================
-# 🎯 منطق معالجة الرسائل والأحداث
+# 🎯 منطق معالجة الرسائل والأحداث (تم تحديث وتوسيع وظائف Handle)
 # ====================================================================
 
 def get_user_first_name(sender_id: str) -> str:
-    """الحصول على اسم المستخدم الأول من فيسبوك"""
+    # دالة جلب الاسم (تم الإبقاء عليها كما هي)
     try:
         user_info = requests.get(
             f"https://graph.facebook.com/v19.0/{sender_id}",
@@ -329,18 +391,17 @@ def get_user_first_name(sender_id: str) -> str:
 
 
 def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu=True):
-    """إرسال رسالة ترحيب وشرح للمستخدم الجديد"""
+    """إرسال رسالة ترحيب وشرح للمستخدم الجديد (تم التحديث)"""
     
     if user_state[recipient_id]['first_time']:
         welcome_text = f"""👋 أهلاً بك يا **{first_name}**! أنا {AI_ASSISTANT_NAME}.
 
-🌟 **كيف أساعدك؟ (شرح الخدمات المتاحة):**
-1.  **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء.
-2.  **🎨 إنشاء/✏️ تحرير الصور:** أرسل وصفاً لإنشاء صورة، أو أرسل صورة ووصف تعديل لتحريرها.
-3.  **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله.
-
-**💡 ملاحظة حول المتابعة:**
-*لتحقيق أقصى استفادة، يرجى متابعة صفحتنا على فيسبوك! (الدعم اختياري ولا يؤثر على عمل البوت)*
+🌟 **كيف أساعدك؟ (أهم الخدمات الجديدة):**
+* **🖼️ إنشاء صور:** خياران: **فائق الواقعية (Pro)** أو **عادي (Max)**.
+* **🎬 تحويل إلى فيديو:** حول **نصك** أو **صورتك** إلى فيديو سينمائي.
+* **🎵 إنشاء موسيقى:** أنشئ مقطوعة موسيقية مدتها 15 ثانية بوصف بسيط.
+* **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء.
+* **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله.
 
 ⬇️ **اختر خدمتك من الأزرار أدناه:**"""
     
@@ -352,16 +413,19 @@ def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu
 
 
 def handle_user_message(sender_id: str, message_text: str):
-    """معالجة الرسائل النصية العامة"""
+    """معالجة الرسائل النصية العامة (تم تحديث حالات الصور والفيديو والموسيقى)"""
     
     current_state = user_state[sender_id]['state']
     
-    # 1. حالات انتظار الوصف (إنشاء/تحرير الصورة)
-    if current_state == 'WAITING_IMAGE_PROMPT':
-        user_state[sender_id]['state'] = None
-        send_text_message(sender_id, "⏳ جاري إنشاء الصورة...")
+    # 1. حالات انتظار الوصف (إنشاء الصور)
+    if current_state == 'WAITING_IMAGE_PROMPT_MAX' or current_state == 'WAITING_IMAGE_PROMPT_PRO':
+        api_url = FLUX_PRO_API if current_state == 'WAITING_IMAGE_PROMPT_PRO' else FLUX_MAX_API
+        model_name = "فائق الواقعية (Pro)" if current_state == 'WAITING_IMAGE_PROMPT_PRO' else "العادي (Max)"
         
-        final_url = AIModels.create_image_ai(message_text)
+        user_state[sender_id]['state'] = None
+        send_text_message(sender_id, f"⏳ جاري إنشاء الصورة باستخدام نموذج {model_name}...")
+        
+        final_url = AIModels.create_image_ai(message_text, api_url)
             
         if final_url:
             send_attachment(sender_id, 'image', final_url)
@@ -371,6 +435,7 @@ def handle_user_message(sender_id: str, message_text: str):
         
         return
         
+    # 2. حالة انتظار وصف تعديل الصورة (تم الإبقاء عليها كما هي)
     elif current_state == 'WAITING_EDIT_DESC':
         image_url = user_state[sender_id].pop('pending_url', None)
         user_state[sender_id]['state'] = None
@@ -389,17 +454,68 @@ def handle_user_message(sender_id: str, message_text: str):
             send_menu_after_action(sender_id, "⚠️ عذراً، فشل تحرير الصورة. حاول بوصف تعديل مختلف.")
         
         return
+    
+    # 3. حالة انتظار وصف الفيديو (نص إلى فيديو)
+    elif current_state == 'WAITING_VIDEO_PROMPT_TEXT':
+        user_state[sender_id]['state'] = None
+        send_text_message(sender_id, "⏳ جاري إنشاء الفيديو من النص. قد يستغرق الأمر بعض الوقت...")
         
-    # 2. الدردشة العامة بالذكاء الاصطناعي مع السياق
+        final_url = AIModels.create_video_ai(message_text)
+        
+        if final_url:
+            send_attachment(sender_id, 'video', final_url)
+            send_menu_after_action(sender_id, "✅ تم إنشاء الفيديو بنجاح! اختر خدمتك التالية:")
+        else:
+            send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء الفيديو. حاول بوصف آخر.")
+        
+        return
+        
+    # 4. حالة انتظار وصف الفيديو (صورة إلى فيديو)
+    elif current_state == 'WAITING_VIDEO_PROMPT_IMAGE':
+        image_url = user_state[sender_id].pop('pending_url', None)
+        user_state[sender_id]['state'] = None
+        
+        if not image_url:
+            send_menu_after_action(sender_id, "⚠️ عذراً، لم يتم تحديد الصورة المراد تحويلها.")
+            return
+            
+        send_text_message(sender_id, "⏳ جاري إنشاء الفيديو من الصورة والوصف. قد يستغرق الأمر بعض الوقت...")
+        
+        final_url = AIModels.create_video_ai(message_text, image_url)
+        
+        if final_url:
+            send_attachment(sender_id, 'video', final_url)
+            send_menu_after_action(sender_id, "✅ تم إنشاء الفيديو بنجاح! اختر خدمتك التالية:")
+        else:
+            send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء الفيديو. حاول بوصف آخر.")
+        
+        return
+        
+    # 5. حالة انتظار وصف الموسيقى (نص إلى موسيقى)
+    elif current_state == 'WAITING_MUSIC_PROMPT':
+        user_state[sender_id]['state'] = None
+        send_text_message(sender_id, "⏳ جاري إنشاء المقطوعة الموسيقية (15 ثانية). قد يستغرق الأمر بعض الوقت...")
+        
+        final_url = AIModels.create_music_ai(message_text)
+        
+        if final_url:
+            # ملفات الموسيقى يتم إرسالها كـ 'audio'
+            send_attachment(sender_id, 'audio', final_url)
+            send_menu_after_action(sender_id, "✅ تم إنشاء الموسيقى بنجاح! اختر خدمتك التالية:")
+        else:
+            send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء المقطوعة الموسيقية. حاول بوصف آخر (مثال: 'love' أو 'jazz music').")
+        
+        return
+
+    # 6. الدردشة العامة بالذكاء الاصطناعي مع السياق (الحالة الافتراضية)
     history = get_conversation_history(sender_id)
     response = AIModels.grok4(message_text, history)
     
-    # يتم إرسال رد الذكاء الاصطناعي متبوعاً بأزرار القائمة الرئيسية (Quick Replies)
     send_menu_after_action(sender_id, response)
     add_conversation_entry(sender_id, message_text, response)
     
 def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
-    """معالجة المرفقات (صور)"""
+    """معالجة المرفقات (صور) (تم تحديث حالات الفيديو والتحرير)"""
     
     attachment_type = attachment.get('type')
     
@@ -407,12 +523,21 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
         image_url = attachment['payload']['url']
         current_state = user_state[sender_id]['state']
 
+        # 1. حالة انتظار صورة لتحريرها
         if current_state == 'WAITING_EDIT_IMAGE':
             user_state[sender_id]['state'] = 'WAITING_EDIT_DESC'
             user_state[sender_id]['pending_url'] = image_url
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
             return
+        
+        # 2. حالة انتظار صورة لتحويلها إلى فيديو
+        elif current_state == 'WAITING_IMAGE_FOR_VIDEO_PROMPT':
+            user_state[sender_id]['state'] = 'WAITING_VIDEO_PROMPT_IMAGE'
+            user_state[sender_id]['pending_url'] = image_url
+            send_text_message(sender_id, "🎬 **أرسل وصف الفيديو السينمائي المطلوب لهذه الصورة:**")
+            return
 
+        # 3. حالة انتظار صورة لـ OCR (تم الإبقاء عليها كما هي)
         elif current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
             user_state[sender_id]['state'] = None
             
@@ -420,17 +545,14 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             
             extracted_text = AIModels.call_ocr_api(image_url)
             
-            # في حالة الخطأ، تم بالفعل إعداد رسالة الخطأ الواضحة في دالة call_ocr_api
             if extracted_text.startswith("❌"): 
                 send_menu_after_action(sender_id, extracted_text)
                 return
 
             if extracted_text:
                 user_state[sender_id]['last_extracted_text'] = extracted_text
-                # يتم عرض الخيارات الثلاثة لـ OCR
                 text = f"✅ **تم استخراج النص:**\n{extracted_text[:300]}...\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
                 
-                # خيارات OCR (Button Template لعدم اختفائها)
                 buttons = [
                     {"type": "postback", "title": "📝 النص المستخرج فقط", "payload": "OCR_SHOW_TEXT"}, 
                     {"type": "postback", "title": "🌐 ترجمة النص", "payload": "OCR_TRANSLATE"},
@@ -443,14 +565,14 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             return
         
         else:
-            # إذا أرسل المستخدم صورة دون طلب مسبق (عرض خيارات سريعة)
+            # إذا أرسل المستخدم صورة دون طلب مسبق (عرض خيارات سريعة) (تم التحديث)
             text = "📸 لقد أرسلت صورة. اختر ماذا تريد أن تفعل بها:"
             buttons = [
                 {"type": "postback", "title": "📝 استخراج النص (OCR)", "payload": "MENU_OCR_START"},
                 {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
-                {"type": "postback", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"}
+                {"type": "postback", "title": "🎬 تحويل إلى فيديو", "payload": "START_VIDEO_FROM_IMG"},
             ]
-            user_state[sender_id]['pending_url'] = image_url # حفظ الرابط للتحرير/التحليل
+            user_state[sender_id]['pending_url'] = image_url 
             send_button_template(sender_id, text, buttons)
             
     
@@ -458,7 +580,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
         send_menu_after_action(sender_id, "⚠️ لا أستطيع معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
 
 def handle_postback(sender_id: str, postback_payload: str):
-    """معالجة ضغط الأزرار (Postback)"""
+    """معالجة ضغط الأزرار (Postback) (تم تحديث وتوسيع الخدمات)"""
     
     user_state[sender_id]['state'] = None
     first_name = get_user_first_name(sender_id)
@@ -466,18 +588,21 @@ def handle_postback(sender_id: str, postback_payload: str):
     # 1. القائمة الرئيسية/الترحيب
     if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN', 'MENU_NEW_CHAT']:
         send_welcome_and_guidance(sender_id, first_name, show_full_menu=True)
-
-    # 2. إنشاء صورة
-    elif postback_payload == 'MENU_CREATE_IMAGE':
-        user_state[sender_id]['state'] = 'WAITING_IMAGE_PROMPT'
-        send_text_message(sender_id, "🎨 **أرسل وصف الصورة التي تريد إنشاءها:**")
-
-    # 3. بدء عملية OCR
-    elif postback_payload == 'MENU_OCR_START':
-        user_state[sender_id]['state'] = 'WAITING_OCR_IMAGE_FOR_ANALYSIS'
-        send_text_message(sender_id, "📝 **أرسل الصورة التي تريد استخراج النص وتحليلها:**")
+    
+    # 2. القائمة الفرعية لإنشاء الصور
+    elif postback_payload == 'MENU_IMAGE_CREATION':
+        send_quick_replies(sender_id, "🖼️ اختر نوع نموذج إنشاء الصور:", get_image_creation_quick_replies())
         
-    # 4. بدء تحرير صورة من القائمة أو من زر سريع
+    # 3. بدء إنشاء الصور (Flux-Max/Flux-Pro)
+    elif postback_payload == 'CREATE_IMAGE_MAX':
+        user_state[sender_id]['state'] = 'WAITING_IMAGE_PROMPT_MAX'
+        send_text_message(sender_id, "🎨 **(Flux Max - عادي)** أرسل وصف الصورة التي تريد إنشاءها:")
+
+    elif postback_payload == 'CREATE_IMAGE_PRO':
+        user_state[sender_id]['state'] = 'WAITING_IMAGE_PROMPT_PRO'
+        send_text_message(sender_id, "⭐ **(Flux Pro - فائق الواقعية)** أرسل وصف الصورة التي تريد إنشاءها:")
+
+    # 4. بدء عملية تحرير الصور (تم الإبقاء عليها كما هي)
     elif postback_payload in ['MENU_EDIT_IMAGE', 'START_EDIT_FROM_IMG']:
         image_url = user_state[sender_id].pop('pending_url', None)
         
@@ -488,11 +613,46 @@ def handle_postback(sender_id: str, postback_payload: str):
         else:
             user_state[sender_id]['state'] = 'WAITING_EDIT_IMAGE'
             send_text_message(sender_id, "✏️ **أرسل الصورة التي تريد تحريرها الآن:**")
+            
+    # 5. القائمة الفرعية لإنشاء الفيديو
+    elif postback_payload == 'MENU_VIDEO_START':
+        send_quick_replies(sender_id, "🎬 اختر نوع الفيديو المطلوب إنشاؤه:", get_video_creation_quick_replies())
+        
+    # 6. بدء إنشاء فيديو (نص إلى فيديو)
+    elif postback_payload == 'VIDEO_TEXT_TO_VIDEO':
+        user_state[sender_id]['state'] = 'WAITING_VIDEO_PROMPT_TEXT'
+        send_text_message(sender_id, "✍️ **أرسل وصف الفيديو السينمائي المطلوب:**")
 
-    # 5. خيارات OCR/التحليل بعد الاستخراج
+    # 7. بدء إنشاء فيديو (صورة إلى فيديو)
+    elif postback_payload == 'VIDEO_IMAGE_TO_VIDEO':
+        user_state[sender_id]['state'] = 'WAITING_IMAGE_FOR_VIDEO_PROMPT'
+        send_text_message(sender_id, "🖼️ **أرسل الصورة التي تريد تحويلها إلى فيديو:**")
+        
+    elif postback_payload == 'START_VIDEO_FROM_IMG': # إذا كانت الصورة موجودة مسبقاً
+        image_url = user_state[sender_id].pop('pending_url', None)
+        if image_url:
+            user_state[sender_id]['state'] = 'WAITING_VIDEO_PROMPT_IMAGE'
+            user_state[sender_id]['pending_url'] = image_url
+            send_text_message(sender_id, "🎬 **أرسل وصف الفيديو السينمائي المطلوب لهذه الصورة:**")
+        else:
+            send_quick_replies(sender_id, "⚠️ عذراً، لم أجد رابط الصورة. يرجى إرسال الصورة مجدداً.", get_main_menu_quick_replies())
+
+
+    # 8. بدء إنشاء الموسيقى
+    elif postback_payload == 'MENU_MUSIC_START':
+        user_state[sender_id]['state'] = 'WAITING_MUSIC_PROMPT'
+        send_text_message(sender_id, "🎵 **أرسل نوع الموسيقى أو الوصف المطلوب (مثال: 'love' أو 'rock with guitar solo'):**")
+
+
+    # 9. بدء عملية OCR (تم الإبقاء عليها كما هي)
+    elif postback_payload == 'MENU_OCR_START':
+        user_state[sender_id]['state'] = 'WAITING_OCR_IMAGE_FOR_ANALYSIS'
+        send_text_message(sender_id, "📝 **أرسل الصورة التي تريد استخراج النص وتحليلها:**")
+
+    # 10. خيارات OCR/التحليل بعد الاستخراج (تم الإبقاء عليها كما هي)
     elif postback_payload.startswith('OCR_'):
         extracted_text = user_state[sender_id].get('last_extracted_text', '')
-        if not extracted_text or extracted_text.startswith("❌"): # تحقق إضافي للخطأ
+        if not extracted_text or extracted_text.startswith("❌"):
             send_menu_after_action(sender_id, "❌ انتهت صلاحية النص أو حدث خطأ مسبق. يرجى إرسال الصورة مجدداً.")
             return
 
@@ -501,11 +661,9 @@ def handle_postback(sender_id: str, postback_payload: str):
         response_text = ""
         
         if postback_payload == 'OCR_SHOW_TEXT':
-            # تنفيذ طلب المستخدم: استخراج النص فقط
             response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}"
             
         elif postback_payload == 'OCR_TRANSLATE':
-            # تحديد اللغة الهدف للترجمة بناءً على وجود الأحرف العربية
             is_arabic = any('\u0600' <= char <= '\u06FF' for char in extracted_text[:100])
             target_lang = "العربية" if not is_arabic else "الإنجليزية"
             
@@ -523,7 +681,7 @@ def handle_postback(sender_id: str, postback_payload: str):
         send_menu_after_action(sender_id, response_text)
 
 # ====================================================================
-# 🌐 Webhook Endpoint
+# 🌐 Webhook Endpoint (تم الإبقاء عليها كما هي)
 # ====================================================================
 
 @app.route('/webhook', methods=['GET', 'POST'])
@@ -574,10 +732,9 @@ def webhook():
         return 'OK', 200
 
 # ====================================================================
-# 🚀 تشغيل التطبيق (باستخدام Gunicorn عند النشر)
+# 🚀 تشغيل التطبيق (تم الإبقاء عليها كما هي)
 # ====================================================================
 
 if __name__ == '__main__':
     logger.info("🚀 بدء تشغيل بوت فيسبوك ماسنجر (مكتبات أساسية)")
-    # استخدام المنفذ 8080 افتراضياً، سيتم استبداله بـ Gunicorn في بيئة الإنتاج
     app.run(host='0.0.0.0', port=os.environ.get('PORT', 8080))
