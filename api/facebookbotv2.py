@@ -7,7 +7,8 @@ from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import logging
 
-# ... (الإعدادات الأساسية كما هي) ...
+# ====================================================================
+# 📚 الإعدادات الأساسية
 # ====================================================================
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
@@ -41,7 +42,7 @@ app = Flask(__name__)
 
 # ====================================================================
 # 🛠️ دوال الشبكة وإرسال الرسائل
-# ... (دوال إرسال الرسائل كما هي) ...
+# ... (بقية دوال الشبكة كما هي) ...
 # ====================================================================
 
 def send_api_request(payload: Dict[str, Any]) -> bool:
@@ -325,7 +326,7 @@ class AIModels:
 # 🎯 منطق معالجة الرسائل والأحداث
 # ====================================================================
 
-# ... (دوال send_welcome_and_guidance, handle_user_message) ...
+# ... (دوال get_user_first_name, send_welcome_and_guidance, handle_user_message) ...
 def get_user_first_name(sender_id: str) -> str:
     # دالة جلب الاسم (تم الإبقاء عليها كما هي)
     try:
@@ -425,21 +426,29 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     if attachment_type == 'image':
         
         # 📌 بناء الرابط المحسن بـ access_token (مطلوب لتمكين الـ OCR API من الوصول)
-        image_url_for_ocr = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
+        image_url_for_api = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
         
         current_state = user_state[sender_id]['state']
 
         if current_state == 'WAITING_EDIT_IMAGE':
             user_state[sender_id]['state'] = 'WAITING_EDIT_DESC'
-            user_state[sender_id]['pending_url'] = image_url_for_ocr 
+            user_state[sender_id]['pending_url'] = image_url_for_api 
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
             return
 
         elif current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
-            # 📌 التعديل: ننتقل الآن إلى حالة انتظار النص (الوصف/التعليمات) كما في بوت تليجرام
-            user_state[sender_id]['state'] = 'WAITING_OCR_INSTRUCTION'
-            user_state[sender_id]['pending_url'] = image_url_for_ocr # نحفظ الرابط المحسن
-            send_text_message(sender_id, "📝 **تم استلام الصورة. يرجى إرسال التعليمات المطلوبة الآن (مثال: 'استخرج النص' أو 'ترجم النص'):**")
+            # 📌 الإصلاح: نحفظ الرابط ونعرض الأزرار مباشرة
+            user_state[sender_id]['state'] = 'WAITING_OCR_COMMAND' # حالة جديدة: انتظار أمر OCR
+            user_state[sender_id]['pending_url'] = image_url_for_api # حفظ الرابط المحسن
+            
+            text = "✅ **تم استلام الصورة.** اختر الأمر المطلوب تنفيذه على النص الموجود بالصورة:"
+            
+            buttons = [
+                {"type": "postback", "title": "📝 استخراج النص فقط", "payload": "OCR_SHOW_TEXT"}, 
+                {"type": "postback", "title": "🌐 استخراج وترجمة", "payload": "OCR_TRANSLATE_EXEC"}, # تم تغيير الحمولة
+                {"type": "postback", "title": "💡 استخراج وشرح/تحليل", "payload": "OCR_ANALYZE_EXEC"}, # تم تغيير الحمولة
+            ]
+            send_button_template(sender_id, text, buttons)
             
             return
         
@@ -451,47 +460,14 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
                 {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
                 {"type": "postback", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"},
             ]
-            user_state[sender_id]['pending_url'] = image_url_for_ocr # حفظ الرابط المحسن للتحرير
+            user_state[sender_id]['pending_url'] = image_url_for_api # حفظ الرابط المحسن
             send_button_template(sender_id, text, buttons)
             
     
     else:
         send_menu_after_action(sender_id, "⚠️ لا أستطيع معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
 
-def handle_ocr_instruction_message(sender_id: str, instruction_text: str, image_url: str):
-    """**دالة جديدة: معالجة الرسالة النصية التي تتبع الصورة في OCR**"""
-    
-    user_state[sender_id]['state'] = None
-    
-    send_text_message(sender_id, "🔍 جاري استخراج وتحليل النص من الصورة...")
-    
-    # 📌 الخطوة الحاسمة: إرسال الرابط المحسّن والنص معًا إلى OCR API
-    extracted_text = AIModels.call_ocr_api(image_url, instruction_text)
-    
-    if extracted_text and not extracted_text.startswith("❌"):
-        user_state[sender_id]['last_extracted_text'] = extracted_text
-        
-        # نستخدم Grok4 لتحليل أو ترجمة النص مباشرة إذا كان النص يحتوي على تعليمات واضحة
-        if "ترجم" in instruction_text or "حلل" in instruction_text or "اشرح" in instruction_text:
-            response_text = AIModels.grok4(f"{instruction_text}:\n\n{extracted_text}")
-        else:
-             # إذا لم تكن هناك تعليمات واضحة، نعرض النص الخام ونسأل ماذا يفعل به
-            response_text = f"✅ **تم استخراج النص بناءً على طلبك:**\n{extracted_text[:1800]}\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
-            
-            buttons = [
-                {"type": "postback", "title": "📝 النص المستخرج فقط", "payload": "OCR_SHOW_TEXT"}, 
-                {"type": "postback", "title": "🌐 ترجمة النص", "payload": "OCR_TRANSLATE"},
-                {"type": "postback", "title": "💡 شرح وتحليل", "payload": "OCR_ANALYZE"},
-            ]
-            send_button_template(sender_id, response_text, buttons)
-            return
-
-        send_menu_after_action(sender_id, response_text)
-    else:
-        send_menu_after_action(sender_id, f"❌ فشل استخراج النص: {extracted_text}")
-        
 def handle_postback(sender_id: str, postback_payload: str):
-    # ... (بقية منطق handle_postback) ...
     """معالجة ضغط الأزرار (Postback)"""
     
     user_state[sender_id]['state'] = None
@@ -528,38 +504,36 @@ def handle_postback(sender_id: str, postback_payload: str):
         user_state[sender_id]['state'] = 'WAITING_OCR_IMAGE_FOR_ANALYSIS'
         send_text_message(sender_id, "📝 **أرسل الصورة التي تريد استخراج النص وتحليلها:**")
 
-    # 6. خيارات OCR/التحليل بعد الاستخراج
-    elif postback_payload.startswith('OCR_'):
-        extracted_text = user_state[sender_id].get('last_extracted_text', '')
-        if not extracted_text or extracted_text.startswith("❌"):
-            send_menu_after_action(sender_id, "❌ انتهت صلاحية النص أو حدث خطأ مسبق. يرجى إرسال الصورة مجدداً.")
+    # 6. خيارات OCR/التحليل (المعالجة الفورية)
+    elif postback_payload in ['OCR_SHOW_TEXT', 'OCR_TRANSLATE_EXEC', 'OCR_ANALYZE_EXEC']:
+        
+        # 📌 الخطوة الحاسمة: المعالجة الفورية لـ OCR
+        
+        image_url = user_state[sender_id].pop('pending_url', None)
+        if not image_url:
+            send_menu_after_action(sender_id, "❌ انتهت صلاحية الصورة. يرجى إرسال الصورة مجدداً.")
             return
 
-        send_text_message(sender_id, "⏳ جاري المعالجة...")
+        send_text_message(sender_id, "⏳ جاري المعالجة بواسطة OCR API...")
         
-        response_text = ""
-        
+        # تحديد التعليمات المطلوبة للـ OCR API بناءً على الزر
         if postback_payload == 'OCR_SHOW_TEXT':
-            response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}"
-            
-        elif postback_payload == 'OCR_TRANSLATE':
-            # يتم تمرير النص المستخرج إلى Grok4 للترجمة
-            is_arabic = any('\u0600' <= char <= '\u06FF' for char in extracted_text[:100])
-            target_lang = "العربية" if not is_arabic else "الإنجليزية"
-            
-            prompt = f"ترجم النص التالي إلى {target_lang} بشكل دقيق:\n\n{extracted_text}"
-            translation = AIModels.grok4(prompt)
-            response_text = f"🌐 **الترجمة إلى {target_lang}:**\n\n{translation}"
-            
-        elif postback_payload == 'OCR_ANALYZE':
-            # يتم تمرير النص المستخرج إلى Grok4 للتحليل
-            prompt = f"""حلل النص التالي واشرح محتواه بالتفصيل: 
-{extracted_text}
-قدم شرحاً مبسطاً ومفيداً للطالب."""
-            analysis = AIModels.grok4(prompt)
-            response_text = f"💡 **تحليل وشرح النص:**\n\n{analysis}"
-            
-        send_menu_after_action(sender_id, response_text)
+            instruction = "استخرج النص فقط"
+        elif postback_payload == 'OCR_TRANSLATE_EXEC':
+            instruction = "ترجم النص إلى العربية والإنجليزية"
+        elif postback_payload == 'OCR_ANALYZE_EXEC':
+            instruction = "اشرح وحلل النص بالتفصيل"
+        else:
+            instruction = ""
+
+        # إرسال طلب واحد إلى OCR API (الذي يقوم بالاستخراج والتنفيذ)
+        response_text = AIModels.call_ocr_api(image_url, instruction)
+        
+        if response_text and not response_text.startswith("❌"):
+            # يتم عرض نتيجة المعالجة مباشرة (استخراج، ترجمة، أو شرح)
+            send_menu_after_action(sender_id, response_text)
+        else:
+            send_menu_after_action(sender_id, f"❌ فشلت عملية OCR والتحليل: {response_text}")
 
 # ====================================================================
 # 🌐 Webhook Endpoint 
@@ -588,24 +562,15 @@ def webhook():
             for messaging_event in entry.get('messaging', []):
                 sender_id = messaging_event['sender']['id']
                 
-                # أ. معالجة الرسائل النصية
+                # أ. معالجة الرسائل النصية (القائمة الرئيسية والمحادثة)
                 if messaging_event.get('message') and messaging_event['message'].get('text'):
                     message = messaging_event['message']
+                    message_text = message['text'].strip()
                     
                     if message.get('quick_reply'):
                         handle_postback(sender_id, message['quick_reply']['payload'])
                     else:
-                        message_text = message['text'].strip()
-                        current_state = user_state[sender_id]['state']
-                        
-                        # 📌 المعالجة الجديدة: إذا كنا ننتظر تعليمات OCR، مررها للدالة المخصصة
-                        if current_state == 'WAITING_OCR_INSTRUCTION':
-                            image_url = user_state[sender_id].pop('pending_url', None)
-                            if image_url:
-                                handle_ocr_instruction_message(sender_id, message_text, image_url)
-                                return # إنهاء المعالجة هنا
-                        
-                        # الحالة الافتراضية: محادثة عادية
+                        # لا توجد حالة انتظار نص هنا، كل شيء يعود للمحادثة العادية
                         handle_user_message(sender_id, message_text)
                 
                 # ب. معالجة المرفقات (Attachment)
