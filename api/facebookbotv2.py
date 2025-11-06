@@ -15,12 +15,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # ====================================================================
-# 🔑 المتغيرات الأساسية والإعدادات 
+# 🔑 المتغيرات الأساسية والإعدادات (تم تحديث رمز الوصول)
 # ====================================================================
 
 # تُقرأ من Vercel Environment Variables
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
-PAGE_ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN', 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9')
+# 🔑 رمز الوصول الجديد الذي أضفته (ثابت)
+PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
 # معلومات المطور (التوقيع لا يحتوي على رابط)
 DEVELOPER_NAME = "younes laldji"
@@ -38,7 +39,7 @@ in_memory_conversations: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
 app = Flask(__name__)
 
 # ====================================================================
-# 🛠️ دوال الشبكة وإرسال الرسائل (الفصل والإرسال)
+# 🛠️ دوال الشبكة وإرسال الرسائل (تم تعديل وإضافة دوال الـ Quick Replies)
 # ====================================================================
 
 def send_api_request(payload: Dict[str, Any]) -> bool:
@@ -68,8 +69,28 @@ def send_text_message(recipient_id: str, message_text: str):
     }
     send_api_request(payload)
 
+def send_quick_replies(recipient_id: str, text: str, quick_replies: List[Dict]):
+    """إرسال رسالة مع أزرار الرد السريع (Quick Replies)"""
+    footer = f"\n\n🤖 {AI_ASSISTANT_NAME}، تصميم: {DEVELOPER_NAME}" 
+    text_with_signature = text + footer
+    
+    data = {
+        "recipient": {"id": recipient_id},
+        "message": {
+            "text": text_with_signature[:2000],
+            "quick_replies": quick_replies
+        }
+    }
+    # لا نرسل التوقيع مرة أخرى لأن Quick Replies تحتوي الرسالة
+    send_api_request(data)
+
+
 def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, Any]]):
-    """إرسال قالب أزرار (Button Template) - يُستخدم لإرسال القوائم"""
+    """إرسال قالب أزرار (Button Template) - يُستخدم للخيارات الثابتة"""
+    # نستخدم send_text_message لإضافة التوقيع قبل القالب لتجنب مشكلة الـ 640 حرفاً
+    footer = f"\n\n🤖 {AI_ASSISTANT_NAME}، تصميم: {DEVELOPER_NAME}" 
+    text_with_signature = text + footer
+    
     payload = {
         'recipient': {'id': recipient_id},
         'message': {
@@ -77,7 +98,7 @@ def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, A
                 'type': "template",
                 "payload": {
                     "template_type": "button",
-                    "text": text,
+                    "text": text_with_signature[:640], # حد الحرف لـ Button Template
                     "buttons": buttons
                 }
             }
@@ -100,31 +121,37 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
         }
     }
     send_api_request(payload)
-    
-    # إرسال القائمة بعد إرسال الصورة
-    send_menu_after_action(recipient_id, "💡 تم إرسال الصورة بنجاح!")
 
-
-def get_main_menu_buttons_template() -> List[Dict[str, Any]]:
-    """بناء أزرار القائمة الرئيسية كـ Postbacks"""
+def get_main_menu_quick_replies() -> List[Dict[str, Any]]:
+    """بناء أزرار القائمة الرئيسية كـ Quick Replies"""
     return [
-        {"type": "postback", "title": "🎨 إنشاء صورة", "payload": "MENU_CREATE_IMAGE"},
-        {"type": "postback", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
-        {"type": "postback", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
-        {"type": "postback", "title": "🔙 قائمة الخدمات", "payload": "MENU_MAIN"}
+        {"content_type": "text", "title": "💬 محادثة جديدة", "payload": "MENU_NEW_CHAT"},
+        {"content_type": "text", "title": "🎨 إنشاء صورة", "payload": "MENU_CREATE_IMAGE"},
+        {"content_type": "text", "title": "📝 تحليل الصور", "payload": "MENU_OCR_START"},
+        {"content_type": "text", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
+        {"content_type": "text", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"} # لإعادة التحميل
     ]
 
 def send_menu_after_action(recipient_id: str, prompt: str):
-    """دالة موحدة لإرسال رسالة نصية تليها قائمة الأزرار الرئيسية"""
-    send_text_message(recipient_id, prompt)
-    send_button_template(recipient_id, "💡 اختر الخدمة التالية:", get_main_menu_buttons_template())
+    """دالة موحدة لإرسال رسالة نصية تليها قائمة الردود السريعة الرئيسية"""
+    # نستخدم send_quick_replies لضمان ظهور الأزرار أسفل الرد
+    send_quick_replies(recipient_id, prompt, get_main_menu_quick_replies())
 
 
 # ====================================================================
-# 🧠 منطق الذكاء الاصطناعي والسياق
+# 🧠 منطق الذكاء الاصطناعي والسياق (تمت إضافة الدوال المفقودة)
 # ====================================================================
 
-# ... (دوال السياق والمحادثة تبقى كما هي) ...
+def get_conversation_history(user_id: str, limit: int = 5) -> List[Tuple[str, str]]:
+    """استرجاع سجل المحادثة من الذاكرة"""
+    history = in_memory_conversations.get(user_id, [])
+    return history[-limit:] if history else []
+
+def add_conversation_entry(user_id: str, message: str, response: str):
+    """إضافة رسالة ورد إلى سجل المحادثة"""
+    in_memory_conversations[user_id].append((message, response))
+    if len(in_memory_conversations[user_id]) > 10:
+        in_memory_conversations[user_id] = in_memory_conversations[user_id][-10:]
 
 def call_grok4_ai(text: str, conversation_history: list = None) -> str:
     """استدعاء Grok-4 للمحادثة العامة مع سياق محسّن وتنظيف الرد"""
@@ -141,18 +168,12 @@ def call_grok4_ai(text: str, conversation_history: list = None) -> str:
             # 💡 تنظيف الرد: إزالة حقول JSON المزعجة 
             try:
                 json_data = json.loads(result)
-                if isinstance(json_data, dict):
-                    if 'response' in json_data:
-                        result = json_data['response']
-                    # إزالة حقول DATE و DEV
-                    if 'date' in json_data:
-                        del json_data['date']
-                    if 'dev' in json_data:
-                        del json_data['dev']
+                if isinstance(json_data, dict) and 'response' in json_data:
+                    result = json_data['response']
             except json.JSONDecodeError:
                 pass
             
-            # تنظيف النص الزائد (كما في كود التلغرام)
+            # تنظيف النص الزائد 
             result = re.sub(r'Don\'t forget to support.*', '', result, flags=re.IGNORECASE)
             result = re.sub(r'@\w+', '', result) 
             
@@ -163,10 +184,24 @@ def call_grok4_ai(text: str, conversation_history: list = None) -> str:
     except Exception:
         return "💥 عذراً، فشل الاتصال بنظام الذكاء الاصطناعي."
 
-# ... (دوال OCR والصور الأخرى تبقى كما هي) ...
+# الدوال الإضافية (للمحاكاة فقط، يجب استبدالها بدوال API الحقيقية)
+def call_ocr_api(image_url: str) -> str:
+    """استدعاء OCR API (وهمي)"""
+    logger.info(f"Mock OCR called for: {image_url}")
+    return "✅ النص المستخرج بنجاح (محتوى وهمي من الصورة)"
+    
+def create_image_ai(prompt: str) -> Optional[str]:
+    """دالة إنشاء الصور (وهمية)"""
+    logger.info(f"Mock Image Create called for: {prompt}")
+    return "https://picsum.photos/400/300" 
+
+def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
+    """دالة تحرير الصور (وهمية)"""
+    logger.info(f"Mock Image Edit called for: {image_url} with prompt: {edit_desc}")
+    return "https://picsum.photos/400/300"
 
 # ====================================================================
-# 🎯 منطق معالجة الرسائل والأحداث (الفصل الرئيسي)
+# 🎯 منطق معالجة الرسائل والأحداث (تم تعديل منطق الإرسال)
 # ====================================================================
 
 def handle_user_message(sender_id: str, message_text: str):
@@ -182,14 +217,18 @@ def handle_user_message(sender_id: str, message_text: str):
         
         send_text_message(sender_id, f"⏳ جاري {'تحرير' if is_edit else 'إنشاء'} الصورة...")
         
+        final_url = None
         if is_edit:
             image_url = user_state[sender_id].pop('pending_edit_url', None)
-            final_url = edit_image_ai(image_url, message_text)
+            if image_url:
+                final_url = edit_image_ai(image_url, message_text)
         else:
             final_url = create_image_ai(message_text)
             
         if final_url:
             send_attachment(sender_id, 'image', final_url)
+            # إرسال القائمة بعد الانتهاء من إرسال المرفق
+            send_menu_after_action(sender_id, "💡 اكتملت عملية الصور. اختر خدمتك التالية:")
         else:
             send_menu_after_action(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة.")
         
@@ -199,6 +238,7 @@ def handle_user_message(sender_id: str, message_text: str):
     history = get_conversation_history(sender_id)
     response = call_grok4_ai(message_text, history)
     
+    # 💡 يتم إرسال رد الذكاء الاصطناعي متبوعاً بأزرار القائمة الرئيسية (Quick Replies)
     send_menu_after_action(sender_id, response)
     add_conversation_entry(sender_id, message_text, response)
     
@@ -213,7 +253,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     current_state = user_state[sender_id]['state']
 
     if current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
-        # حالة تحليل الصورة بعد طلب OCR
+        # حالة تحليل الصورة بعد طلب OCR (تتم المعالجة مباشرة هنا)
         user_state[sender_id]['state'] = None
         user_state[sender_id]['pending_ocr_url'] = image_url
         
@@ -225,6 +265,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             user_state[sender_id]['last_extracted_text'] = extracted_text
             text = f"✅ **تم استخراج النص:**\n{extracted_text[:300]}...\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
             
+            # نستخدم Button Template للأزرار المرتبطة بالتحليل لأنها Postback (لا تختفي)
             buttons = [
                 {"type": "postback", "title": "🌐 ترجمة", "payload": "OCR_TRANSLATE"},
                 {"type": "postback", "title": "💡 شرح وتحليل", "payload": "OCR_ANALYZE"},
@@ -239,6 +280,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     else:
         # إذا أرسل المستخدم صورة دون طلب مسبق (عرض خيارات سريعة)
         text = "📸 لقد أرسلت صورة. اختر ماذا تريد أن تفعل بها:"
+        # نستخدم Button Template لخيارات الصورة التي قد تحتاج إلى تكرار
         buttons = [
             {"type": "postback", "title": "📝 استخراج النص (OCR)", "payload": "MENU_OCR_START"},
             {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
@@ -252,8 +294,8 @@ def handle_postback(sender_id: str, postback_payload: str):
     
     user_state[sender_id]['state'] = None
     
-    # 1. القائمة الرئيسية/الترحيب
-    if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN']:
+    # 1. القائمة الرئيسية/الترحيب/القائمة الجديدة (Quick Reply)
+    if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN', 'MENU_NEW_CHAT']:
         text = f"👋 أهلاً بك! أنا {AI_ASSISTANT_NAME}. اختر خدمتك:"
         send_menu_after_action(sender_id, text)
         
@@ -276,31 +318,32 @@ def handle_postback(sender_id: str, postback_payload: str):
             user_state[sender_id]['pending_edit_url'] = image_url
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
         else:
-            send_text_message(sender_id, "⚠️ عذراً، الرابط غير موجود. يرجى إرسال الصورة مرة أخرى.")
+            send_menu_after_action(sender_id, "⚠️ عذراً، الرابط غير موجود. يرجى إرسال الصورة مرة أخرى.")
 
     # 5. خيارات OCR بعد الاستخراج
     elif postback_payload.startswith('OCR_'):
         extracted_text = user_state[sender_id].get('last_extracted_text', '')
         if not extracted_text:
-            send_text_message(sender_id, "❌ انتهت صلاحية النص. يرجى إرسال الصورة مجدداً.")
+            send_menu_after_action(sender_id, "❌ انتهت صلاحية النص. يرجى إرسال الصورة مجدداً.")
             return
 
         send_text_message(sender_id, "⏳ جاري المعالجة...")
         
+        response_text = ""
         if postback_payload == 'OCR_SHOW_TEXT':
-            send_text_message(sender_id, f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}...")
+            response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}..."
             
         elif postback_payload == 'OCR_TRANSLATE':
             prompt = f"ترجم النص التالي إلى العربية:\n\n{extracted_text}"
             translation = call_grok4_ai(prompt)
-            send_text_message(sender_id, f"🌐 **الترجمة إلى العربية:**\n\n{translation}")
+            response_text = f"🌐 **الترجمة إلى العربية:**\n\n{translation}"
             
         elif postback_payload == 'OCR_ANALYZE':
             prompt = f"حلل هذا النص واشرح محتواه بالتفصيل (إذا كان تمريناً فقدم الحل، وإذا كان نصاً فقدم شرحاً): \n\n{extracted_text}"
             analysis = call_grok4_ai(prompt)
-            send_text_message(sender_id, f"💡 **تحليل وشرح النص:**\n\n{analysis}")
+            response_text = f"💡 **تحليل وشرح النص:**\n\n{analysis}"
             
-        send_menu_after_action(sender_id, "💡 اختر خدمة أخرى:")
+        send_menu_after_action(sender_id, response_text)
 
 # ====================================================================
 # 🌐 Webhook Endpoint (نقطة النهاية الإلزامية)
@@ -333,7 +376,11 @@ def webhook():
                 
                 # أ. معالجة الرسائل النصية
                 if messaging_event.get('message') and messaging_event['message'].get('text'):
-                    handle_user_message(sender_id, messaging_event['message']['text'].strip())
+                    # 💡 يتم هنا التعرف على Quick Reply ومعالجته كـ Postback
+                    if messaging_event['message'].get('quick_reply'):
+                        handle_postback(sender_id, messaging_event['message']['quick_reply']['payload'])
+                    else:
+                        handle_user_message(sender_id, messaging_event['message']['text'].strip())
                 
                 # ب. معالجة المرفقات (Attachment)
                 elif messaging_event.get('message') and messaging_event['message'].get('attachments'):
@@ -346,3 +393,7 @@ def webhook():
                     handle_postback(sender_id, messaging_event['postback']['payload'])
 
         return 'OK', 200
+
+if __name__ == '__main__':
+    logger.info("🚀 بدء تشغيل بوت فيسبوك ماسنجر - بويكتا")
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', 3000))
