@@ -25,8 +25,9 @@ AI_ASSISTANT_NAME = "بويكتا"
 # واجهات الذكاء الاصطناعي الخارجية (المعتمدة على requests)
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
-NANO_BANANA_API = 'https://sii3.top/api/nano-banana.php' # لإنشاء وتحرير الصور
-GPT_IMAGER_API = 'https://sii3.top/api/gpt-img.php' # لتحرير الصور
+NANO_BANANA_API = 'https://sii3.top/api/nano-banana.php' # لإنشاء وتحرير الصور (المحاولة الثانية للتحرير)
+# تم تغيير GPT_IMAGER_API إلى FLUX_MAX_API ليتناسب مع تحديث الروبوت
+FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' # لتحرير الصور (المحاولة الأولى)
 
 # الذاكرة المؤقتة وحالة المستخدم (بديل SQLite)
 user_state: Dict[str, Dict[str, Any]] = defaultdict(lambda: {'state': None, 'first_time': True, 'pending_url': None, 'last_extracted_text': None})
@@ -200,6 +201,7 @@ class AIModels:
                 extracted_text = result_json.get('response', '')
                 if not extracted_text:
                     return ""
+                # تحسين تنظيف النص المستخرج
                 return extracted_text.replace('\\n', '\n').strip()
             else:
                 return f"❌ خطأ في OCR API (رمز: {response.status_code})"
@@ -209,16 +211,23 @@ class AIModels:
 
     @staticmethod
     def create_image_ai(prompt: str) -> Optional[str]:
-        """استدعاء API لإنشاء الصور (Nano-Banana)"""
+        """استدعاء API لإنشاء الصور (Nano-Banana) مع ترجمة الوصف"""
         try:
             english_prompt = AIModels._translate_to_english(prompt)
             payload = {'text': english_prompt}
-            response = requests.post(NANO_BANANA_API, data=payload, timeout=60)
+            response = requests.post(NANO_BANANA_API, data=payload, timeout=90) # زيادة المهلة
             if response.ok:
                 data = response.json()
-                return data.get('url') or data.get('image')
+                # Nano-Banana يرسل خطأً أحياناً ولكنه يعمل، لذا نعتمد على محاولة استخراج الرابط
+                image_url = data.get('url') or data.get('image')
+                if image_url:
+                    return image_url
+                
+                # إذا لم يكن هناك رابط، قد يكون خطأ فعلي
+                logger.error(f"Nano-Banana Create Error (No URL): {data}")
+                return None
             else:
-                logger.error(f"Image Create API Error: {response.text}")
+                logger.error(f"Nano-Banana Create API Error: {response.text}")
                 return None
         except Exception as e:
             logger.error(f"Image Create Exception: {e}")
@@ -226,29 +235,33 @@ class AIModels:
 
     @staticmethod
     def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
-        """استدعاء API لتحرير الصور (Nano-Banana + GPT-Imager)"""
+        """استدعاء API لتحرير الصور (Flux-Max أولاً، ثم Nano-Banana) مع ترجمة الوصف"""
         english_desc = AIModels._translate_to_english(edit_desc)
 
-        # 1. محاولة Nano-Banana أولاً
+        # 1. محاولة Flux-Max (الخدمة المحدثة)
         try:
+            # مثال POST: curl -X POST "https://sii3.top/api/flux-max.php" -d "prompt=Make the snake red" -d "image=..."
+            payload = {'prompt': english_desc, 'image': image_url} 
+            response = requests.post(FLUX_MAX_API, data=payload, timeout=90)
+            if response.ok:
+                data = response.json()
+                # عادةً ما يرسل الرابط في 'url'
+                if data.get('url'):
+                    return data.get('url')
+        except Exception:
+            logger.warning("Flux-Max edit failed, falling back to Nano-Banana")
+            
+        # 2. محاولة Nano-Banana (المحاولة الاحتياطية)
+        try:
+            # مثال POST: {'text': english_desc, 'links': image_url}
             payload = {'text': english_desc, 'links': image_url}
-            response = requests.post(NANO_BANANA_API, data=payload, timeout=60)
+            response = requests.post(NANO_BANANA_API, data=payload, timeout=90)
             if response.ok:
                 data = response.json()
                 if data.get('url') or data.get('image'):
                     return data.get('url') or data.get('image')
-        except Exception:
-            logger.warning("Nano-Banana edit failed, falling back to GPT-Imager")
-            
-        # 2. محاولة GPT-Imager
-        try:
-            payload = {'text': english_desc, 'link': image_url}
-            response = requests.post(GPT_IMAGER_API, data=payload, timeout=60)
-            if response.ok:
-                data = response.json()
-                return data.get('image') or data.get('url')
         except Exception as e:
-            logger.error(f"Image Edit Exception: {e}")
+            logger.error(f"Nano-Banana Edit Exception: {e}")
             return None
         
         return None
@@ -264,8 +277,9 @@ class AIModels:
             )
             if response.ok:
                 result = response.json()
-                if result and len(result) > 0 and len(result[0]) > 0:
-                    return ''.join([item[0] for item in result[0] if item[0]])
+                # يتم بناء الجملة المترجمة من الأجزاء المستخرجة
+                if result and isinstance(result, list) and len(result) > 0 and isinstance(result[0], list):
+                    return ''.join([item[0] for item in result[0] if isinstance(item, list) and len(item) > 0 and item[0]])
         except Exception:
             pass
         return text
@@ -325,7 +339,7 @@ def handle_user_message(sender_id: str, message_text: str):
             send_attachment(sender_id, 'image', final_url)
             send_menu_after_action(sender_id, "✅ تم إنشاء الصورة بنجاح! اختر خدمتك التالية:")
         else:
-            send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء الصورة.")
+            send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء الصورة. حاول بوصف آخر.")
         
         return
         
@@ -344,7 +358,7 @@ def handle_user_message(sender_id: str, message_text: str):
             send_attachment(sender_id, 'image', final_url)
             send_menu_after_action(sender_id, "✅ تم تحرير الصورة بنجاح! اختر خدمتك التالية:")
         else:
-            send_menu_after_action(sender_id, "⚠️ عذراً، فشل تحرير الصورة.")
+            send_menu_after_action(sender_id, "⚠️ عذراً، فشل تحرير الصورة. حاول بوصف تعديل مختلف.")
         
         return
         
@@ -380,13 +394,14 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             
             if extracted_text and not extracted_text.startswith("❌"):
                 user_state[sender_id]['last_extracted_text'] = extracted_text
+                # يتم عرض الخيارات الثلاثة لـ OCR
                 text = f"✅ **تم استخراج النص:**\n{extracted_text[:300]}...\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
                 
                 # خيارات OCR (Button Template لعدم اختفائها)
                 buttons = [
-                    {"type": "postback", "title": "🌐 ترجمة", "payload": "OCR_TRANSLATE"},
+                    {"type": "postback", "title": "📝 النص المستخرج فقط", "payload": "OCR_SHOW_TEXT"}, # تم تعديل العنوان ليكون واضحاً
+                    {"type": "postback", "title": "🌐 ترجمة النص", "payload": "OCR_TRANSLATE"},
                     {"type": "postback", "title": "💡 شرح وتحليل", "payload": "OCR_ANALYZE"},
-                    {"type": "postback", "title": "📝 النص فقط", "payload": "OCR_SHOW_TEXT"},
                 ]
                 send_button_template(sender_id, text, buttons)
             else:
@@ -453,9 +468,11 @@ def handle_postback(sender_id: str, postback_payload: str):
         response_text = ""
         
         if postback_payload == 'OCR_SHOW_TEXT':
-            response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}..."
+            # تنفيذ طلب المستخدم: استخراج النص فقط
+            response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}"
             
         elif postback_payload == 'OCR_TRANSLATE':
+            # تحديد اللغة الهدف للترجمة
             is_arabic = any('\u0600' <= char <= '\u06FF' for char in extracted_text[:100])
             target_lang = "العربية" if not is_arabic else "الإنجليزية"
             
