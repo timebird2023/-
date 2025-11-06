@@ -6,7 +6,7 @@ from flask import Flask, request
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import logging
-import time # 👈 [التعديل 1: استيراد مكتبة الوقت]
+import time # تم الإبقاء على المكتبة لكن يمكن إزالتها إذا لم تكن مطلوبة لـ Grok
 
 # ====================================================================
 # 📚 الإعدادات الأساسية
@@ -15,18 +15,17 @@ import time # 👈 [التعديل 1: استيراد مكتبة الوقت]
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
-# 🔑 رمز الوصول لصفحة فيسبوك - يفضل وضعه كمتغير بيئة
+# 🔑 رمز الوصول لصفحة فيسبوك
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
-# ⚠️ ملاحظة: يفضل تغيير هذا لمتغير بيئة لأمان أفضل
 PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
 # معلومات المطور
 DEVELOPER_NAME = "younes laldji"
 AI_ASSISTANT_NAME = "بويكتا"
 
-# 🌟 واجهات الذكاء الاصطناعي الخارجية 🌟
+# 🌟 واجهات الذكاء الاصطناعي الخارجية (المتبقية) 🌟
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
-OCR_API = 'https://sii3.top/api/OCR.php'
+# تم حذف OCR_API
 FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' 
 MUSIC_API = 'https://sii3.top/api/create-music.php' 
 
@@ -143,12 +142,12 @@ def send_attachment_and_note(recipient_id: str, attachment_type: str, url: str, 
 
 
 def get_main_menu_quick_replies() -> List[Dict[str, Any]]:
-    """بناء أزرار القائمة الرئيسية المحدثة"""
+    """بناء أزرار القائمة الرئيسية المحدثة (تم حذف OCR)"""
     return [
         {"content_type": "text", "title": "💬 محادثة جديدة", "payload": "MENU_NEW_CHAT"},
         {"content_type": "text", "title": "🖼️ إنشاء صورة", "payload": "MENU_CREATE_IMAGE_MAX"},
         {"content_type": "text", "title": "🎵 إنشاء موسيقى", "payload": "MENU_MUSIC_START"},
-        {"content_type": "text", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
+        # تم حذف {"content_type": "text", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
         {"content_type": "text", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
         {"content_type": "text", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"}
     ]
@@ -207,7 +206,7 @@ class AIModels:
 
     @staticmethod
     def _translate_to_english(text: str) -> str:
-        # دالة الترجمة (تم الإبقاء عليها كما هي)
+        # دالة الترجمة
         try:
             response = requests.get(
                 'https://translate.googleapis.com/translate_a/single',
@@ -238,45 +237,7 @@ class AIModels:
         except Exception:
             return "💥 عذراً، فشل الاتصال بنظام الذكاء الاصطناعي."
 
-    @staticmethod
-    def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """
-        **استدعاء OCR API (مع تنسيق الرابط كقائمة مفصولة بـ ", ") وتضمين منطق المحاولة الثانية**
-        [التعديل 2: تطبيق منطق المحاولة الثانية لتجاوز مشاكل صلاحية الرابط/الاتصال]
-        """
-        link_string = ", ".join([image_url]) if image_url else ""
-        payload = {"link": link_string, "text": instruction}
-        
-        # 📌 محاولة أولى وثانية لضمان استقرار الاتصال بالـ API
-        for attempt in range(2): 
-            try:
-                response = requests.post(OCR_API, data=payload, timeout=60)
-                
-                if response.ok:
-                    extracted_text = AIModels._clean_response(response.text)
-                    
-                    # إذا نجح الرد وليس فيه خطأ الـ API المعتاد
-                    if 'Something went wrong' not in extracted_text and 'Enter text + image' not in extracted_text and extracted_text:
-                        return extracted_text
-                    
-                    # إذا فشل في المحاولة الأولى وظل الرد خطأ، جرب مرة أخرى
-                    if attempt == 0:
-                        time.sleep(2) # انتظار ثانيتين قبل المحاولة الثانية
-                        continue
-                    
-                    # فشل في كلتا المحاولتين
-                    return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة. (الخطأ: {extracted_text[:50]}...)"
-                else:
-                    # إذا كان الرد HTTP غير 200
-                    return f"❌ خطأ في OCR API (رمز: {response.status_code})"
-            except Exception as e:
-                logger.error(f"OCR Exception: {e}")
-                if attempt == 0:
-                    time.sleep(2)
-                    continue
-                return "❌ فشل الاتصال بخدمة OCR."
-        
-        return "❌ فشل في الاتصال بالخدمة بعد عدة محاولات." # Fallback
+    # تم حذف call_ocr_api بالكامل
 
     @staticmethod
     def create_image_ai(prompt: str) -> Optional[str]:
@@ -355,8 +316,8 @@ def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu
 🌟 **كيف أساعدك؟ (الخدمات المتاحة):**
 * **🖼️ إنشاء صور:** أرسل وصفك وسأحولهُ إلى صورة.
 * **🎵 إنشاء موسيقى:** أنشئ مقطوعة موسيقية مدتها 15 ثانية بوصف بسيط.
-* **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله.
 * **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء.
+* **✏️ تحرير الصور:** أرسل صورة ووصفاً للتعديل.
 
 ⬇️ **اختر خدمتك من الأزرار أدناه:**"""
     
@@ -433,7 +394,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     
     if attachment_type == 'image':
         
-        # بناء الرابط المحسن بـ access_token (مطلوب لتمكين الـ OCR API من الوصول)
+        # بناء الرابط المحسن بـ access_token
         image_url_for_api = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
         
         current_state = user_state[sender_id]['state']
@@ -443,29 +404,16 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             user_state[sender_id]['pending_url'] = image_url_for_api 
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
             return
-
-        elif current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
-            # نحفظ الرابط ونعرض الأزرار مباشرة
-            user_state[sender_id]['state'] = 'WAITING_OCR_COMMAND' # حالة جديدة: انتظار أمر OCR
-            user_state[sender_id]['pending_url'] = image_url_for_api # حفظ الرابط المحسن
-            
-            text = "✅ **تم استلام الصورة.** اختر الأمر المطلوب تنفيذه على النص الموجود بالصورة:"
-            
-            buttons = [
-                {"type": "postback", "title": "📝 استخراج النص فقط", "payload": "OCR_SHOW_TEXT"}, 
-                {"type": "postback", "title": "🌐 استخراج وترجمة", "payload": "OCR_TRANSLATE_EXEC"}, 
-                {"type": "postback", "title": "💡 استخراج وشرح/تحليل", "payload": "OCR_ANALYZE_EXEC"}, 
-            ]
-            send_button_template(sender_id, text, buttons)
-            
-            return
         
+        # تم حذف حالة WAIT_OCR_... بالكامل
+
         else:
             # إذا أرسل المستخدم صورة دون طلب مسبق (عرض خيارات سريعة)
             text = "📸 لقد أرسلت صورة. اختر ماذا تريد أن تفعل بها:"
             buttons = [
-                {"type": "postback", "title": "📝 استخراج النص (OCR)", "payload": "MENU_OCR_START"},
+                # تم حذف خيار OCR
                 {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
+                {"type": "postback", "title": "🖼️ إنشاء صورة جديدة", "payload": "MENU_CREATE_IMAGE_MAX"},
                 {"type": "postback", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"},
             ]
             user_state[sender_id]['pending_url'] = image_url_for_api # حفظ الرابط المحسن
@@ -507,42 +455,7 @@ def handle_postback(sender_id: str, postback_payload: str):
         user_state[sender_id]['state'] = 'WAITING_MUSIC_PROMPT'
         send_text_message(sender_id, "🎵 **أرسل نوع الموسيقى أو الوصف المطلوب (مثال: 'love' أو 'rock'):**")
 
-    # 5. بدء عملية OCR
-    elif postback_payload == 'MENU_OCR_START':
-        user_state[sender_id]['state'] = 'WAITING_OCR_IMAGE_FOR_ANALYSIS'
-        send_text_message(sender_id, "📝 **أرسل الصورة التي تريد استخراج النص وتحليلها:**")
-
-    # 6. خيارات OCR/التحليل (المعالجة الفورية)
-    elif postback_payload in ['OCR_SHOW_TEXT', 'OCR_TRANSLATE_EXEC', 'OCR_ANALYZE_EXEC']:
-        
-        # الخطوة الحاسمة: المعالجة الفورية لـ OCR
-        
-        image_url = user_state[sender_id].pop('pending_url', None)
-        if not image_url:
-            send_menu_after_action(sender_id, "❌ انتهت صلاحية الصورة. يرجى إرسال الصورة مجدداً.")
-            return
-
-        send_text_message(sender_id, "⏳ جاري المعالجة بواسطة OCR API...")
-        
-        # تحديد التعليمات المطلوبة للـ OCR API بناءً على الزر
-        if postback_payload == 'OCR_SHOW_TEXT':
-            instruction = "استخرج النص فقط"
-        elif postback_payload == 'OCR_TRANSLATE_EXEC':
-            instruction = "ترجم النص إلى العربية والإنجليزية"
-        elif postback_payload == 'OCR_ANALYZE_EXEC':
-            instruction = "اشرح وحلل النص بالتفصيل"
-        else:
-            instruction = ""
-
-        # إرسال طلب واحد إلى OCR API (الذي يقوم بالاستخراج والتنفيذ)
-        # 💡 تم تحديث دالة call_ocr_api لتشمل منطق المحاولة الثانية
-        response_text = AIModels.call_ocr_api(image_url, instruction)
-        
-        if response_text and not response_text.startswith("❌"):
-            # يتم عرض نتيجة المعالجة مباشرة (استخراج، ترجمة، أو شرح)
-            send_menu_after_action(sender_id, response_text)
-        else:
-            send_menu_after_action(sender_id, f"❌ فشلت عملية OCR والتحليل: {response_text}")
+    # 5. تم حذف منطق OCR (MENU_OCR_START و OCR_SHOW_TEXT/TRANSLATE/ANALYZE)
 
 # ====================================================================
 # 🌐 Webhook Endpoint 
@@ -574,11 +487,13 @@ def webhook():
                 # أ. معالجة الرسائل النصية (القائمة الرئيسية والمحادثة)
                 if messaging_event.get('message') and messaging_event['message'].get('text'):
                     message = messaging_event['message']
-                    message_text = message['text'].strip()
                     
                     if message.get('quick_reply'):
+                        # إذا كان هناك رد سريع (مثل القائمة الرئيسية)
                         handle_postback(sender_id, message['quick_reply']['payload'])
                     else:
+                        # رسالة نصية عادية (للمحادثة أو لإدخال وصف)
+                        message_text = message['text'].strip()
                         handle_user_message(sender_id, message_text)
                 
                 # ب. معالجة المرفقات (Attachment)
