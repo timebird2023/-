@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # تُقرأ من Vercel Environment Variables
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
+# **تنبيه: تم استبدال القيمة الرمزية لـ PAGE_ACCESS_TOKEN بالقيمة الحقيقية الموجودة في الكود المرفوع**
 PAGE_ACCESS_TOKEN = os.environ.get('PAGE_ACCESS_TOKEN', 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9')
 
 # معلومات المطور (تم تعديل التوقيع لـ "younes laldji" فقط)
@@ -103,7 +104,7 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
     }
     send_api_request(payload)
     
-    # إرسال القائمة بعد إرسال الصورة
+    # 💡 تم تعديل هذه الدالة: ترسل القائمة بعد إرسال الصورة
     send_menu_after_action(recipient_id, "💡 تم إرسال الصورة بنجاح!")
 
 
@@ -123,7 +124,7 @@ def send_menu_after_action(recipient_id: str, prompt: str):
 
 
 # ====================================================================
-# 🧠 منطق الذكاء الاصطناعي والسياق
+# 🧠 منطق الذكاء الاصطناعي والسياق (مع تعديلات طفيفة على التنظيف)
 # ====================================================================
 
 def get_conversation_history(sender_id: str, limit: int = 5) -> list:
@@ -166,6 +167,7 @@ def call_grok4_ai(text: str, conversation_history: list = None) -> str:
             # تنظيف النص الزائد (كما في كود التلغرام)
             result = re.sub(r'Don\'t forget to support.*', '', result, flags=re.IGNORECASE)
             result = re.sub(r'@\w+', '', result) 
+            result = re.sub(r'\\n', '\n', result) # إضافة معالجة للـ \n 
             
             return result.strip()
         else:
@@ -228,7 +230,7 @@ def handle_user_message(sender_id: str, message_text: str):
     
     current_state = user_state[sender_id]['state']
     
-    # 1. حالات انتظار الوصف (صورة أو تحرير)
+    # 1. حالات انتظار الوصف (صورة أو تحرير) - الأولوية القصوى
     if current_state in ['WAITING_IMAGE_PROMPT', 'WAITING_EDIT_DESC']:
         # تفريغ حالة الانتظار
         is_edit = (current_state == 'WAITING_EDIT_DESC')
@@ -236,23 +238,26 @@ def handle_user_message(sender_id: str, message_text: str):
         
         send_text_message(sender_id, f"⏳ جاري {'تحرير' if is_edit else 'إنشاء'} الصورة...")
         
+        image_url = user_state[sender_id].pop('pending_edit_url', None) if is_edit else None
+        
         if is_edit:
-            image_url = user_state[sender_id].pop('pending_edit_url', None)
-            final_url = edit_image_ai(image_url, message_text)
+            final_url = edit_image_ai(image_url, message_text) if image_url else None
         else:
             final_url = create_image_ai(message_text)
             
         if final_url:
-            send_attachment(sender_id, 'image', final_url) # send_attachment يرسل القائمة تلقائيا
+            # send_attachment ترسل القائمة الرئيسية تلقائيا بعد الإرسال
+            send_attachment(sender_id, 'image', final_url) 
         else:
-            send_menu_after_action(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة.")
+            send_menu_after_action(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة." if not is_edit or image_url else "⚠️ عذراً، فشل تحرير الصورة. لم يتم العثور على رابط الصورة الأصلية.")
         
         return
 
-    # 2. الدردشة العامة بالذكاء الاصطناعي مع السياق
+    # 2. الدردشة العامة بالذكاء الاصطناعي مع السياق - الخيار الافتراضي
     history = get_conversation_history(sender_id)
     response = call_grok4_ai(message_text, history)
     
+    # 💡 يتم الرد ثم عرض القائمة الرئيسية لإعادة المستخدم إلى خيارات الأزرار
     send_menu_after_action(sender_id, response)
     add_conversation_entry(sender_id, message_text, response)
     
@@ -269,7 +274,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
 
     if current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
         # حالة تحليل الصورة بعد طلب OCR
-        user_state[sender_id]['state'] = None
+        user_state[sender_id]['state'] = None # إلغاء حالة الانتظار
         user_state[sender_id]['pending_ocr_url'] = image_url
         
         send_text_message(sender_id, "🔍 تم استلام الصورة. جاري استخراج النص...")
@@ -280,6 +285,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             user_state[sender_id]['last_extracted_text'] = extracted_text
             text = f"✅ **تم استخراج النص:**\n{extracted_text[:300]}...\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
             
+            # أزرار الـ OCR هي أزرار Postback لضمان عدم معاملتها كرسالة نصية عادية
             buttons = [
                 {"type": "postback", "title": "🌐 ترجمة", "payload": "OCR_TRANSLATE"},
                 {"type": "postback", "title": "💡 شرح وتحليل", "payload": "OCR_ANALYZE"},
@@ -303,35 +309,44 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
         send_button_template(sender_id, text, buttons)
 
 def handle_postback(sender_id: str, postback_payload: str):
-    """معالجة ضغط الأزرار (Postback)"""
+    """معالجة ضغط الأزرار (Postback) - لا تمرر أي شيء منها لمنطق الدردشة"""
     
+    # 💡 إلغاء أي حالة انتظار سابقة عند ضغط زر جديد
     user_state[sender_id]['state'] = None
     
     # 1. القائمة الرئيسية/الترحيب
     if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN']:
         text = f"👋 أهلاً بك! أنا {AI_ASSISTANT_NAME}. اختر خدمتك:"
-        send_menu_after_action(sender_id, text)
+        send_button_template(sender_id, text, get_main_menu_buttons_template())
         
     # 2. إنشاء صورة
     elif postback_payload == 'MENU_CREATE_IMAGE':
         user_state[sender_id]['state'] = 'WAITING_IMAGE_PROMPT'
-        send_text_message(sender_id, "🎨 **أرسل وصف الصورة التي تريد إنشاءها:**")
+        send_text_message(sender_id, "🎨 **أرسل وصف الصورة التي تريد إنشاءها الآن:**")
 
     # 3. بدء عملية OCR
     elif postback_payload == 'MENU_OCR_START':
         user_state[sender_id]['state'] = 'WAITING_OCR_IMAGE_FOR_ANALYSIS'
         send_text_message(sender_id, "📝 **أرسل الصورة التي تريد استخراج النص وتحليلها:**")
         
-    # 4. بدء تحرير صورة من قائمة الأزرار السريعة
-    elif postback_payload == 'START_EDIT_FROM_IMG':
-        # استخدام الرابط المحفوظ من الإرسال السريع للصورة (من دالة handle_attachment)
-        image_url = user_state[sender_id].pop('pending_quick_edit_url', None)
+    # 4. بدء تحرير صورة من قائمة الأزرار السريعة أو الرئيسية
+    elif postback_payload in ['MENU_EDIT_IMAGE', 'START_EDIT_FROM_IMG']:
+        # التحقق من وجود رابط للصورة في حالة START_EDIT_FROM_IMG
+        image_url = user_state[sender_id].pop('pending_quick_edit_url', None) if postback_payload == 'START_EDIT_FROM_IMG' else None
+
+        if postback_payload == 'MENU_EDIT_IMAGE' and not image_url:
+             # إذا كان من القائمة الرئيسية، يجب أن يرسل صورة أولاً
+             user_state[sender_id]['state'] = 'WAITING_IMAGE_FOR_EDIT' # حالة جديدة لانتظار الصورة
+             send_text_message(sender_id, "✏️ **لتحرير صورة، أرسلها لي أولاً، ثم سأطلب منك وصف التعديل.**")
+             return
+
         if image_url:
             user_state[sender_id]['state'] = 'WAITING_EDIT_DESC'
             user_state[sender_id]['pending_edit_url'] = image_url
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
         else:
-            send_text_message(sender_id, "⚠️ عذراً، الرابط غير موجود. يرجى إرسال الصورة مرة أخرى.")
+            # هذه الرسالة لا يجب أن تظهر في الوضع العادي
+            send_text_message(sender_id, "⚠️ عذراً، لم يتم العثور على رابط الصورة للتحرير. يرجى إرسال الصورة مرة أخرى أو البدء من القائمة الرئيسية.")
 
     # 5. خيارات OCR بعد الاستخراج
     elif postback_payload.startswith('OCR_'):
@@ -346,6 +361,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             send_text_message(sender_id, f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}...")
             
         elif postback_payload == 'OCR_TRANSLATE':
+            # ترجمة النص إلى العربية
             prompt = f"ترجم النص التالي إلى العربية:\n\n{extracted_text}"
             translation = call_grok4_ai(prompt)
             send_text_message(sender_id, f"🌐 **الترجمة إلى العربية:**\n\n{translation}")
@@ -396,7 +412,7 @@ def webhook():
                         if attachment['type'] == 'image':
                             handle_attachment(sender_id, attachment)
                 
-                # ج. معالجة ضغط الأزرار (Postback)
+                # ج. معالجة ضغط الأزرار (Postback) - هذا الحدث مفصول تماماً عن الذكاء الاصطناعي
                 elif messaging_event.get('postback'):
                     handle_postback(sender_id, messaging_event['postback']['payload'])
 
