@@ -181,6 +181,7 @@ class AIModels:
             prompt = f"سياق المحادثة السابقة:\n{context}\n\nالسؤال الحالي: {text}"
 
         try:
+            # GROK API uses 'data' (form-urlencoded)
             response = requests.post(GROK_API_URL, data={'text': prompt}, timeout=60)
             if response.ok:
                 return AIModels._clean_response(response.text)
@@ -191,10 +192,11 @@ class AIModels:
 
     @staticmethod
     def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """استدعاء OCR API لاستخراج النص من الصورة فقط"""
+        """استدعاء OCR API لاستخراج النص من الصورة فقط (تم التعديل لاستخدام json)"""
         try:
             payload = {"link": image_url, "text": instruction}
-            response = requests.post(OCR_API, data=payload, timeout=60)
+            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
+            response = requests.post(OCR_API, json=payload, timeout=60)
             if response.ok:
                 try:
                     result_json = response.json()
@@ -223,11 +225,12 @@ class AIModels:
 
     @staticmethod
     def create_image_ai(prompt: str) -> Optional[str]:
-        """استدعاء API لإنشاء الصور (Nano-Banana) مع ترجمة الوصف"""
+        """استدعاء API لإنشاء الصور (Nano-Banana) مع ترجمة الوصف (تم التعديل لاستخدام json)"""
         try:
             english_prompt = AIModels._translate_to_english(prompt)
             payload = {'text': english_prompt}
-            response = requests.post(NANO_BANANA_API, data=payload, timeout=90) 
+            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
+            response = requests.post(NANO_BANANA_API, json=payload, timeout=90) 
             
             if response.ok:
                 try:
@@ -252,13 +255,14 @@ class AIModels:
 
     @staticmethod
     def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
-        """استدعاء API لتحرير الصور (Flux-Max أولاً، ثم Nano-Banana) مع ترجمة الوصف"""
+        """استدعاء API لتحرير الصور (Flux-Max أولاً، ثم Nano-Banana) مع ترجمة الوصف (تم التعديل لاستخدام json)"""
         english_desc = AIModels._translate_to_english(edit_desc)
 
         # 1. محاولة Flux-Max (الخدمة المحدثة)
         try:
             payload = {'prompt': english_desc, 'image': image_url} 
-            response = requests.post(FLUX_MAX_API, data=payload, timeout=90)
+            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
+            response = requests.post(FLUX_MAX_API, json=payload, timeout=90)
             if response.ok:
                 try:
                     data = response.json()
@@ -274,7 +278,8 @@ class AIModels:
         # 2. محاولة Nano-Banana (المحاولة الاحتياطية)
         try:
             payload = {'text': english_desc, 'links': image_url}
-            response = requests.post(NANO_BANANA_API, data=payload, timeout=90)
+            # *** التعديل: استخدام json=payload بدلاً من data=payload ***
+            response = requests.post(NANO_BANANA_API, json=payload, timeout=90)
             if response.ok:
                 try:
                     data = response.json()
