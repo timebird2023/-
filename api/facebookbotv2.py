@@ -9,6 +9,7 @@ from collections import defaultdict
 import logging
 
 # 🚨 يجب أن يحتوي requirements.txt على: Flask, requests
+# هذا الكود جاهز للاستخدام في بيئة Vercel Serverless
 
 # إعداد الـ Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -60,7 +61,7 @@ def send_api_request(payload: Dict[str, Any]) -> bool:
 
 def send_text_message(recipient_id: str, message_text: str):
     """إرسال رسالة نصية بسيطة مع توقيع المطور (بدون رابط)"""
-    # ⚠️ تم تعديل التذييل لإزالة الرابط
+    # ⚠️ التوقيع لا يحتوي على رابط
     footer = f"\n\n🤖 {AI_ASSISTANT_NAME}، تصميم: {DEVELOPER_NAME}" 
     full_message = message_text + footer
     payload = {
@@ -71,7 +72,6 @@ def send_text_message(recipient_id: str, message_text: str):
 
 def send_button_template(recipient_id: str, text: str, buttons: List[Dict[str, Any]]):
     """إرسال قالب أزرار (Button Template)"""
-    # هذا هو الأسلوب الصحيح لإظهار الأزرار التي تولد حدث Postback
     payload = {
         'recipient': {'id': recipient_id},
         'message': {
@@ -102,6 +102,10 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
         }
     }
     send_api_request(payload)
+    
+    # إرسال القائمة بعد إرسال الصورة
+    send_menu_after_action(recipient_id, "💡 تم إرسال الصورة بنجاح!")
+
 
 def get_main_menu_buttons_template() -> List[Dict[str, Any]]:
     """بناء أزرار القائمة الرئيسية كـ Postbacks"""
@@ -112,17 +116,21 @@ def get_main_menu_buttons_template() -> List[Dict[str, Any]]:
         {"type": "postback", "title": "🔙 قائمة الخدمات", "payload": "MENU_MAIN"}
     ]
 
+def send_menu_after_action(recipient_id: str, prompt: str):
+    """دالة موحدة لإرسال رسالة نصية تليها قائمة الأزرار الرئيسية"""
+    send_text_message(recipient_id, prompt)
+    send_button_template(recipient_id, "💡 اختر الخدمة التالية:", get_main_menu_buttons_template())
+
+
 # ====================================================================
 # 🧠 منطق الذكاء الاصطناعي والسياق
 # ====================================================================
 
 def get_conversation_history(sender_id: str, limit: int = 5) -> list:
-    """الحصول على سياق المحادثة من الذاكرة"""
     history = in_memory_conversations.get(sender_id, [])
     return history[-limit:]
 
 def add_conversation_entry(sender_id: str, message: str, response: str):
-    """إضافة رسالة وسياق إلى الذاكرة"""
     history = in_memory_conversations.get(sender_id, [])
     history.append((message, response))
     in_memory_conversations[sender_id] = history[-10:]
@@ -233,29 +241,25 @@ def handle_user_message(sender_id: str, message_text: str):
             final_url = create_image_ai(message_text)
             
         if final_url:
-            send_attachment(sender_id, 'image', final_url)
+            send_attachment(sender_id, 'image', final_url) # send_attachment يرسل القائمة تلقائيا
         else:
-            send_text_message(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة.")
-            
-        # إظهار الأزرار بعد انتهاء العملية
-        send_button_template(sender_id, "✅ تم. ماذا تريد أن تفعل الآن؟", get_main_menu_buttons_template())
+            send_menu_after_action(sender_id, f"⚠️ عذراً، فشل {'تحرير' if is_edit else 'إنشاء'} الصورة.")
+        
         return
 
     # 2. الدردشة العامة بالذكاء الاصطناعي مع السياق
     history = get_conversation_history(sender_id)
     response = call_grok4_ai(message_text, history)
     
-    send_text_message(sender_id, response)
+    send_menu_after_action(sender_id, response)
     add_conversation_entry(sender_id, message_text, response)
     
-    # إظهار الأزرار في كل مرة للوصول السريع
-    send_button_template(sender_id, "💡 اختر الخدمة التالية:", get_main_menu_buttons_template())
 
 def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     """معالجة المرفقات (صور)"""
     
     if attachment.get('type') != 'image':
-        send_text_message(sender_id, "⚠️ لا أستطيع حالياً معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
+        send_menu_after_action(sender_id, "⚠️ لا أستطيع حالياً معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
         return
     
     image_url = attachment['payload']['url']
@@ -281,7 +285,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             ]
             send_button_template(sender_id, text, buttons)
         else:
-            send_text_message(sender_id, f"❌ فشل استخراج النص من الصورة. {extracted_text}")
+            send_menu_after_action(sender_id, f"❌ فشل استخراج النص من الصورة. {extracted_text}")
         
         return
     
@@ -304,7 +308,7 @@ def handle_postback(sender_id: str, postback_payload: str):
     # 1. القائمة الرئيسية/الترحيب
     if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN']:
         text = f"👋 أهلاً بك! أنا {AI_ASSISTANT_NAME}. اختر خدمتك:"
-        send_button_template(sender_id, text, get_main_menu_buttons_template())
+        send_menu_after_action(sender_id, text)
         
     # 2. إنشاء صورة
     elif postback_payload == 'MENU_CREATE_IMAGE':
@@ -349,7 +353,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             analysis = call_grok4_ai(prompt)
             send_text_message(sender_id, f"💡 **تحليل وشرح النص:**\n\n{analysis}")
             
-        send_button_template(sender_id, "💡 اختر خدمة أخرى:", get_main_menu_buttons_template())
+        send_menu_after_action(sender_id, "💡 اختر خدمة أخرى:")
 
 # ====================================================================
 # 🌐 Webhook Endpoint (نقطة النهاية الإلزامية)
