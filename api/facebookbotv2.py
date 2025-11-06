@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # 🔑 رمز الوصول لصفحة فيسبوك
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
-# ⚠️ تنبيه: يرجى التأكد من أن هذا الرمز صالح وطويل الأجل
+# ⚠️ تنبيه: يرجى استبدال هذا الرمز برمز وصول صفحة صالح وطويل الأجل 
 PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
 # معلومات المطور
@@ -27,7 +27,7 @@ AI_ASSISTANT_NAME = "بويكتا"
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
 
-# خدمات الصور (تم إلغاء NANO_BANANA_API لإنشاء الصور)
+# خدمات الصور
 FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' # لإنشاء وتحرير الصور (النموذج العادي)
 FLUX_PRO_API = 'https://sii3.top/api/flux-pro.php' # لإنشاء صور فائقة الواقعية (النموذج الجديد)
 
@@ -50,7 +50,6 @@ app = Flask(__name__)
 # 🛠️ دوال الشبكة وإرسال الرسائل (تم الإبقاء عليها كما هي)
 # ====================================================================
 
-# ... (دوال send_api_request, send_text_message, send_quick_replies, send_button_template, send_attachment بدون تغيير) ...
 def send_api_request(payload: Dict[str, Any]) -> bool:
     """دالة عامة لإرسال طلب إلى Messenger Send API"""
     params = {'access_token': PAGE_ACCESS_TOKEN}
@@ -134,8 +133,8 @@ def get_main_menu_quick_replies() -> List[Dict[str, Any]]:
     """**بناء أزرار القائمة الرئيسية المحدثة**"""
     return [
         {"content_type": "text", "title": "💬 محادثة جديدة", "payload": "MENU_NEW_CHAT"},
-        {"content_type": "text", "title": "🖼️ إنشاء صور (فلوكس)", "payload": "MENU_IMAGE_CREATION"}, # زر فرعي جديد
-        {"content_type": "text", "title": "🎬 تحويل إلى فيديو", "payload": "MENU_VIDEO_START"}, # زر فرعي جديد
+        {"content_type": "text", "title": "🖼️ إنشاء صور (فلوكس)", "payload": "MENU_IMAGE_CREATION"},
+        {"content_type": "text", "title": "🎬 تحويل إلى فيديو", "payload": "MENU_VIDEO_START"},
         {"content_type": "text", "title": "🎵 إنشاء موسيقى", "payload": "MENU_MUSIC_START"},
         {"content_type": "text", "title": "📝 تحليل الصور (OCR)", "payload": "MENU_OCR_START"},
         {"content_type": "text", "title": "✏️ تحرير الصور", "payload": "MENU_EDIT_IMAGE"},
@@ -163,7 +162,7 @@ def send_menu_after_action(recipient_id: str, prompt: str):
     send_quick_replies(recipient_id, prompt, get_main_menu_quick_replies())
 
 # ====================================================================
-# 🧠 منطق الذكاء الاصطناعي والخدمات (تم التحديث)
+# 🧠 منطق الذكاء الاصطناعي والخدمات (تم تصحيح طريقة الإرسال إلى data=)
 # ====================================================================
 
 # دوال السياق (تم الإبقاء عليها كما هي)
@@ -182,16 +181,13 @@ class AIModels:
     def _clean_response(text: str) -> str:
         """تنظيف الردود من JSON والرموز غير المرغوب فيها"""
         try:
-            # محاولة استخراج 'response' إذا كان الرد JSON
             try:
                 json_data = json.loads(text)
                 if isinstance(json_data, dict) and ('response' in json_data or 'url' in json_data or 'image' in json_data):
-                     # نفضل 'response' للمحادثات أو الروابط المباشرة
                     text = json_data.get('response', json_data.get('url', json_data.get('image', text)))
             except json.JSONDecodeError:
                 pass
             
-            # تنظيف الرسائل الترويجية والرموز
             text = re.sub(r'Don\'t forget to support.*', '', text, flags=re.IGNORECASE)
             text = re.sub(r'@\w+', '', text) 
             text = re.sub(r'\\n', '\n', text)
@@ -220,13 +216,13 @@ class AIModels:
 
     @staticmethod
     def grok4(text: str, conversation_history: list = None) -> str:
-        """استدعاء Grok-4 للمحادثة العامة مع سياق محسّن (تم الإبقاء عليها كما هي)"""
+        """استدعاء Grok-4 للمحادثة العامة (يستخدم data=)"""
         prompt = text
         if conversation_history:
             context = "\n".join([f"المستخدم: {msg}\nالمساعد: {resp}" for msg, resp in conversation_history[-5:]])
             prompt = f"سياق المحادثة السابقة:\n{context}\n\nالسؤال الحالي: {text}"
         try:
-            # GROK API يستخدم 'data' (form-urlencoded)
+            # GROK API يستخدم data=
             response = requests.post(GROK_API_URL, data={'text': prompt}, timeout=60)
             if response.ok:
                 return AIModels._clean_response(response.text)
@@ -237,19 +233,19 @@ class AIModels:
 
     @staticmethod
     def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """استدعاء OCR API (تم التصحيح لاستخدام json=payload ومعالجة الخطأ)"""
+        """استدعاء OCR API (تم التصحيح لاستخدام data=)"""
         try:
+            # مثال POST: -d 'text=describe the image' -d 'link=...'
             payload = {"link": image_url, "text": instruction}
-            # 📌 تصحيح: استخدام json=payload بدلاً من data=payload لضمان التنسيق الصحيح
-            response = requests.post(OCR_API, json=payload, timeout=60)
+            # 📌 تصحيح: العودة إلى استخدام data=payload
+            response = requests.post(OCR_API, data=payload, timeout=60)
             
             if response.ok:
                 extracted_text = AIModels._clean_response(response.text)
                 
-                # 📌 تصحيح: معالجة رسالة الخطأ المحددة
-                error_message = "Something went wrong. Please try again."
-                if error_message in extracted_text:
-                    return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة. (الخطأ: {error_message})"
+                error_message = "Enter text + image"
+                if error_message in extracted_text or extracted_text.startswith("❌"):
+                    return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة. (الخطأ: {extracted_text[:50]}...)"
                 
                 if not extracted_text:
                     return "❌ فشل استخراج النص: لا يوجد نص في الرد."
@@ -262,15 +258,15 @@ class AIModels:
 
     @staticmethod
     def create_image_ai(prompt: str, api_url: str) -> Optional[str]:
-        """**دالة موحدة لإنشاء الصور (Flux-Pro و Flux-Max)**"""
+        """**دالة موحدة لإنشاء الصور (Flux-Pro و Flux-Max) (تم التصحيح لاستخدام data=)**"""
         try:
-            # Flux APIs تستخدم 'text' في POST لـ Flux-Pro وتستخدم 'prompt' لـ Flux-Max
+            # Flux APIs تستخدم 'text' لـ Pro و 'prompt' لـ Max
             key = 'text' if api_url == FLUX_PRO_API else 'prompt'
             english_prompt = AIModels._translate_to_english(prompt)
             
             payload = {key: english_prompt}
-            # 📌 تصحيح: استخدام json=payload بدلاً من data=payload
-            response = requests.post(api_url, json=payload, timeout=90) 
+            # 📌 تصحيح: العودة إلى استخدام data=payload
+            response = requests.post(api_url, data=payload, timeout=90) 
             
             if response.ok:
                 data = response.json()
@@ -290,14 +286,14 @@ class AIModels:
 
     @staticmethod
     def edit_image_ai(image_url: str, edit_desc: str) -> Optional[str]:
-        """**استدعاء Flux-Max لتحرير الصور (حصراً)**"""
+        """**استدعاء Flux-Max لتحرير الصور (تم التصحيح لاستخدام data=)**"""
         english_desc = AIModels._translate_to_english(edit_desc)
 
         try:
-            # Flux-Max API يستخدم 'prompt' و 'image' في POST
+            # مثال POST: -d "prompt=..." -d "image=..."
             payload = {'prompt': english_desc, 'image': image_url} 
-            # 📌 تصحيح: استخدام json=payload بدلاً من data=payload
-            response = requests.post(FLUX_MAX_API, json=payload, timeout=90)
+            # 📌 تصحيح: العودة إلى استخدام data=payload
+            response = requests.post(FLUX_MAX_API, data=payload, timeout=90)
             if response.ok:
                 data = response.json()
                 flux_url = data.get('url') or data.get('image')
@@ -311,15 +307,15 @@ class AIModels:
     
     @staticmethod
     def create_video_ai(prompt: str, image_url: Optional[str] = None) -> Optional[str]:
-        """**إنشاء فيديو (نص إلى فيديو أو صورة إلى فيديو)**"""
+        """**إنشاء فيديو (نص إلى فيديو أو صورة إلى فيديو) (تم التصحيح لاستخدام data=)**"""
         try:
-            # VEO3 API يستخدم 'text' و 'link' (اختياري للصورة)
+            # مثال POST: -d "text=..." -d "link=..."
             payload = {'text': prompt}
             if image_url:
                 payload['link'] = image_url
             
-            # 📌 تصحيح: استخدام json=payload
-            response = requests.post(VEO3_API, json=payload, timeout=120) 
+            # 📌 تصحيح: العودة إلى استخدام data=payload
+            response = requests.post(VEO3_API, data=payload, timeout=120) 
             
             if response.ok:
                 data = response.json()
@@ -336,16 +332,17 @@ class AIModels:
 
     @staticmethod
     def create_music_ai(prompt: str) -> Optional[str]:
-        """**إنشاء موسيقى (نص إلى موسيقى)**"""
+        """**إنشاء موسيقى (نص إلى موسيقى) (تم التصحيح لاستخدام data=)**"""
         try:
-            # MUSIC API يستخدم 'text' في POST (وفقًا للمثال)
+            # مثال POST: -d "text=love"
             payload = {'text': prompt}
-            # 📌 تصحيح: استخدام data=payload (أو json=payload، سنستخدم data للتوافق مع أمثلة curl)
+            # 📌 تصحيح: العودة إلى استخدام data=payload
             response = requests.post(MUSIC_API, data=payload, timeout=90) 
             
             if response.ok:
                 music_url = response.text.strip()
-                if music_url and 'http' in music_url and music_url.endswith(('.mp3', '.wav', '.ogg')):
+                # قد يكون الرد رابطاً مباشراً دون JSON
+                if music_url and 'http' in music_url and music_url.endswith(('.mp3', '.wav', '.ogg', 'mp3')): # إضافة mp3 بدون نقطة تحسباً
                     return music_url
             else:
                 logger.error(f"Music Creation API Error (Status: {response.status_code}): {response.text}")
@@ -355,8 +352,10 @@ class AIModels:
             return None
 
 # ====================================================================
-# 🎯 منطق معالجة الرسائل والأحداث (تم التحديث)
+# 🎯 منطق معالجة الرسائل والأحداث (تم الإبقاء على منطق التدفق)
 # ====================================================================
+
+# ... (بقية منطق handle_user_message, handle_attachment, handle_postback ودوال الـ Webhook كما هي) ...
 
 def get_user_first_name(sender_id: str) -> str:
     # دالة جلب الاسم (تم الإبقاء عليها كما هي)
@@ -542,7 +541,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             buttons = [
                 {"type": "postback", "title": "📝 استخراج النص (OCR)", "payload": "MENU_OCR_START"},
                 {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
-                {"type": "postback", "title": "🎬 تحويل إلى فيديو", "payload": "START_VIDEO_FROM_IMG"}, # زر جديد
+                {"type": "postback", "title": "🎬 تحويل إلى فيديو", "payload": "START_VIDEO_FROM_IMG"},
             ]
             user_state[sender_id]['pending_url'] = image_url 
             send_button_template(sender_id, text, buttons)
@@ -552,7 +551,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
         send_menu_after_action(sender_id, "⚠️ لا أستطيع معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
 
 def handle_postback(sender_id: str, postback_payload: str):
-    """معالجة ضغط الأزرار (Postback) (تم التحديث)"""
+    """معالجة ضغط الأزرار (Postback)"""
     
     user_state[sender_id]['state'] = None
     first_name = get_user_first_name(sender_id)
