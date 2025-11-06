@@ -2,35 +2,19 @@ import os
 import json
 import requests
 import re
-import time
-import io
-import tempfile
-import threading
 from flask import Flask, request
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import logging
-import sqlite3
-from datetime import datetime
-# استيراد مكتبات معالجة الملفات والصيغ الرياضية
-try:
-    from PIL import Image
-    import PyPDF2
-    import docx
-    import sympy as sp
-    # لا يمكن استخدام scipy/numpy مباشرة في بيئة بسيطة مثل Flask على Vercel/Render
-except ImportError as e:
-    logging.warning(f"⚠️ مكتبات متقدمة مفقودة (PIL/PyPDF2/docx/sympy). قد تفشل بعض الميزات المتقدمة. {e}")
-
 
 # ====================================================================
 # 📚 الإعدادات الأساسية
 # ====================================================================
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
-# 🔑 رمز الوصول لصفحة فيسبوك (من الطلب السابق)
+# 🔑 رمز الوصول لصفحة فيسبوك
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
 PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
@@ -38,68 +22,18 @@ PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNv
 DEVELOPER_NAME = "younes laldji"
 AI_ASSISTANT_NAME = "بويكتا"
 
-# واجهات الذكاء الاصطناعي
+# واجهات الذكاء الاصطناعي الخارجية (المعتمدة على requests)
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
 NANO_BANANA_API = 'https://sii3.top/api/nano-banana.php' # لإنشاء وتحرير الصور
 GPT_IMAGER_API = 'https://sii3.top/api/gpt-img.php' # لتحرير الصور
-DARK_CODE_API = 'https://sii3.top/api/DarkCode.php' # للبرمجة
 
-# الذاكرة المؤقتة وحالة المستخدم
-user_state: Dict[str, Dict[str, Any]] = defaultdict(lambda: {'state': None, 'first_time': True, 'pending_url': None, 'edit_prompt': None})
+# الذاكرة المؤقتة وحالة المستخدم (بديل SQLite)
+user_state: Dict[str, Dict[str, Any]] = defaultdict(lambda: {'state': None, 'first_time': True, 'pending_url': None, 'last_extracted_text': None})
+# يخزن آخر 10 رسائل لكل مستخدم (كحد أقصى)
 in_memory_conversations: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
-memory_lock = threading.Lock()
 
 app = Flask(__name__)
-
-# ====================================================================
-# 🗄️ إدارة قاعدة البيانات المصغرة (SQLite)
-# ====================================================================
-
-class Database:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.conn = sqlite3.connect('messenger_bot.db', check_same_thread=False)
-        self.create_tables()
-        logger.info("✅ تم إعداد قاعدة البيانات لـ Messenger")
-
-    def create_tables(self):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                user_id TEXT PRIMARY KEY,
-                first_name TEXT,
-                message_count INTEGER DEFAULT 0,
-                joined_at TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS conversations (
-                user_id TEXT,
-                message TEXT,
-                response TEXT,
-                timestamp TEXT
-            )
-        ''')
-        self.conn.commit()
-
-    def add_or_update_user(self, user_id: str, first_name: str):
-        try:
-            with self.lock:
-                cursor = self.conn.cursor()
-                now = datetime.now().isoformat()
-                cursor.execute('''
-                    INSERT INTO users (user_id, first_name, joined_at, message_count)
-                    VALUES (?, ?, ?, 1)
-                    ON CONFLICT(user_id) DO UPDATE SET
-                        first_name = excluded.first_name,
-                        message_count = message_count + 1
-                ''', (user_id, first_name, now))
-                self.conn.commit()
-        except Exception as e:
-            logger.warning(f"DB user operation failed: {e}")
-
-db = Database()
 
 # ====================================================================
 # 🛠️ دوال الشبكة وإرسال الرسائل
@@ -198,31 +132,29 @@ def send_menu_after_action(recipient_id: str, prompt: str):
     send_quick_replies(recipient_id, prompt, get_main_menu_quick_replies())
 
 # ====================================================================
-# 🧠 منطق الذكاء الاصطناعي والخدمات المتقدمة (مُعدّل من كود Telegram)
+# 🧠 منطق الذكاء الاصطناعي والخدمات
 # ====================================================================
 
-# دوال السياق (تستخدم الذاكرة المؤقتة فقط هنا لسهولة الدمج)
+# دوال السياق (تستخدم الذاكرة المؤقتة فقط)
 def get_conversation_history(user_id: str, limit: int = 5) -> List[Tuple[str, str]]:
+    """استرجاع سجل المحادثة (آخر 5 رسائل)"""
     history = in_memory_conversations.get(user_id, [])
+    # يتم استرجاع آخر limit عنصر
     return history[-limit:] if history else []
 
 def add_conversation_entry(user_id: str, message: str, response: str):
+    """إضافة رسالة ورد إلى سجل المحادثة (الذاكرة المؤقتة)"""
     in_memory_conversations[user_id].append((message, response))
+    # الحفاظ على حجم السجل بحد أقصى 10
     if len(in_memory_conversations[user_id]) > 10:
         in_memory_conversations[user_id] = in_memory_conversations[user_id][-10:]
-    # إضافة إلى قاعدة البيانات لضمان الثبات
-    try:
-        db.add_conversation(user_id, message, response)
-    except Exception as e:
-        logger.warning(f"DB conversation save failed: {e}")
 
-# دوال الخدمات المتقدمة
+# دوال الخدمات
 class AIModels:
     @staticmethod
     def _clean_response(text: str) -> str:
-        """تنظيف الردود من JSON والرموز غير المرغوب فيها (مُعاد من كود Telegram)"""
+        """تنظيف الردود من JSON والرموز غير المرغوب فيها"""
         try:
-            # ... (منطق تنظيف الردود من كود Telegram)
             try:
                 json_data = json.loads(text)
                 if isinstance(json_data, dict) and 'response' in json_data:
@@ -244,6 +176,7 @@ class AIModels:
         """استدعاء Grok-4 للمحادثة العامة مع سياق محسّن"""
         prompt = text
         if conversation_history:
+            # يتم بناء سياق المحادثة من آخر 5 مدخلات
             context = "\n".join([f"المستخدم: {msg}\nالمساعد: {resp}" for msg, resp in conversation_history[-5:]])
             prompt = f"سياق المحادثة السابقة:\n{context}\n\nالسؤال الحالي: {text}"
 
@@ -253,13 +186,12 @@ class AIModels:
                 return AIModels._clean_response(response.text)
             else:
                 return f"⚠️ خطأ في Grok-4 API (رمز: {response.status_code})"
-
         except Exception:
             return "💥 عذراً، فشل الاتصال بنظام الذكاء الاصطناعي."
 
     @staticmethod
     def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """استدعاء OCR API لاستخراج النص من الصورة"""
+        """استدعاء OCR API لاستخراج النص من الصورة فقط"""
         try:
             payload = {"link": image_url, "text": instruction}
             response = requests.post(OCR_API, data=payload, timeout=60)
@@ -297,7 +229,7 @@ class AIModels:
         """استدعاء API لتحرير الصور (Nano-Banana + GPT-Imager)"""
         english_desc = AIModels._translate_to_english(edit_desc)
 
-        # 1. محاولة Nano-Banana أولاً (أسرع)
+        # 1. محاولة Nano-Banana أولاً
         try:
             payload = {'text': english_desc, 'links': image_url}
             response = requests.post(NANO_BANANA_API, data=payload, timeout=60)
@@ -322,66 +254,6 @@ class AIModels:
         return None
 
     @staticmethod
-    def solve_math_problem(problem: str) -> str:
-        """حل المسائل الرياضية باستخدام SymPy (مُعدّل)"""
-        try:
-            if 'sp' not in globals():
-                return "⚠️ خدمة حل المعادلات غير متاحة بسبب نقص مكتبة SymPy."
-
-            x = sp.Symbol('x')
-            
-            # محاولة حل المعادلة مباشرة عبر الذكاء الاصطناعي لضمان التنسيق
-            ai_prompt = f"حل المعادلة أو التعبير الرياضي التالي خطوة بخطوة. اكتب الحل بتنسيق واضح ومفهوم (استخدم (a/b) بدلاً من الكسور و √ بدلاً من الجذر):\n\n{problem}"
-            solution = AIModels.grok4(ai_prompt)
-            
-            return solution
-        except Exception as e:
-            logger.error(f"Math solving error: {e}")
-            return "حدث خطأ أثناء معالجة المسألة الرياضية."
-
-    @staticmethod
-    def extract_text_from_file(file_content: bytes, file_name: str) -> str:
-        """استخراج النص من الملفات (PDF/DOCX/TXT)"""
-        try:
-            if 'PyPDF2' not in globals() and 'docx' not in globals():
-                 return "⚠️ خدمة استخراج النص من الملفات غير متاحة (نقص المكتبات)."
-                 
-            file_name = file_name.lower()
-            file_stream = io.BytesIO(file_content)
-
-            if file_name.endswith('.pdf'):
-                pdf_reader = PyPDF2.PdfReader(file_stream)
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-            elif file_name.endswith('.docx') or file_name.endswith('.doc'):
-                doc = docx.Document(file_stream)
-                text = ""
-                for paragraph in doc.paragraphs:
-                    text += paragraph.text + "\n"
-            elif file_name.endswith('.txt'):
-                text = file_content.decode('utf-8', errors='ignore')
-            else:
-                return ""
-            
-            return text.strip()[:4000]
-        except Exception as e:
-            logger.error(f"File extraction error: {e}")
-            return "❌ فشل استخراج النص من الملف."
-
-    @staticmethod
-    def call_dark_code(query: str) -> str:
-        """استدعاء مساعد البرمجة DarkCode"""
-        try:
-            response = requests.post(DARK_CODE_API, json={'text': query}, timeout=45)
-            if response.ok:
-                return AIModels._clean_response(response.text)
-            else:
-                return f"❌ خطأ في DarkCode API (رمز: {response.status_code})"
-        except Exception:
-            return "💥 فشل الاتصال بخدمة البرمجة."
-
-    @staticmethod
     def _translate_to_english(text: str) -> str:
         """ترجمة النص إلى الإنجليزية لتحسين دقة إنشاء/تحرير الصور"""
         try:
@@ -402,24 +274,31 @@ class AIModels:
 # 🎯 منطق معالجة الرسائل والأحداث
 # ====================================================================
 
+def get_user_first_name(sender_id: str) -> str:
+    """الحصول على اسم المستخدم الأول من فيسبوك"""
+    try:
+        user_info = requests.get(
+            f"https://graph.facebook.com/v19.0/{sender_id}",
+            params={"access_token": PAGE_ACCESS_TOKEN, "fields": "first_name"}
+        ).json()
+        return user_info.get('first_name', 'مستخدم')
+    except Exception:
+        return 'مستخدم'
+
+
 def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu=True):
     """إرسال رسالة ترحيب وشرح للمستخدم الجديد"""
     
     if user_state[recipient_id]['first_time']:
-        # رسالة الترحيب والشرح (للمستخدم الجديد)
         welcome_text = f"""👋 أهلاً بك يا **{first_name}**! أنا {AI_ASSISTANT_NAME}.
 
-🌟 **كيف أساعدك؟ (شرح الخدمات):**
-1.  **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء (لأي مادة أو موضوع).
-2.  **🎨 إنشاء/✏️ تحرير الصور:** أرسل وصفاً وسأنشئ صورة، أو أرسل صورة ووصف تعديل وسأقوم بتحريرها.
-3.  **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله وحل أي مسائل رياضية به.
-4.  **📄 معالجة الملفات:** أرسل ملف PDF/DOCX/TXT وسألخص محتواه أو أستخرج منه المعلومات.
-5.  **🔢 حل المعادلات:** اكتب سؤالك الرياضي مباشرة (مثال: $2x+5=15$).
-6.  **💻 مساعدة البرمجة:** اطلب مني كتابة أو شرح أي كود.
+🌟 **كيف أساعدك؟ (شرح الخدمات المتاحة):**
+1.  **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء.
+2.  **🎨 إنشاء/✏️ تحرير الصور:** أرسل وصفاً لإنشاء صورة، أو أرسل صورة ووصف تعديل لتحريرها.
+3.  **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله.
 
 **💡 ملاحظة حول المتابعة:**
-لتحقيق أقصى استفادة، يرجى متابعة صفحتنا على فيسبوك!
-*رغم أنني لا أستطيع إجبارك على الإعجاب أو المتابعة قبل الاستخدام (لأن فيسبوك لا يسمح بذلك بشكل مباشر في هذا السياق)، إلا أن دعمك يساعدني في الاستمرار!*
+*لتحقيق أقصى استفادة، يرجى متابعة صفحتنا على فيسبوك! (الدعم اختياري ولا يؤثر على عمل البوت)*
 
 ⬇️ **اختر خدمتك من الأزرار أدناه:**"""
     
@@ -427,7 +306,6 @@ def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu
         user_state[recipient_id]['first_time'] = False
     
     if show_full_menu:
-        # عرض القائمة الرئيسية (Quick Replies)
         send_menu_after_action(recipient_id, "💡 اختر الخدمة التالية:")
 
 
@@ -436,7 +314,7 @@ def handle_user_message(sender_id: str, message_text: str):
     
     current_state = user_state[sender_id]['state']
     
-    # 1. حالات انتظار الوصف (صورة أو تحرير)
+    # 1. حالات انتظار الوصف (إنشاء/تحرير الصورة)
     if current_state == 'WAITING_IMAGE_PROMPT':
         user_state[sender_id]['state'] = None
         send_text_message(sender_id, "⏳ جاري إنشاء الصورة...")
@@ -452,7 +330,6 @@ def handle_user_message(sender_id: str, message_text: str):
         return
         
     elif current_state == 'WAITING_EDIT_DESC':
-        # حالة تحرير الصورة بعد استلام الرابط
         image_url = user_state[sender_id].pop('pending_url', None)
         user_state[sender_id]['state'] = None
         
@@ -470,24 +347,8 @@ def handle_user_message(sender_id: str, message_text: str):
             send_menu_after_action(sender_id, "⚠️ عذراً، فشل تحرير الصورة.")
         
         return
-
-    # 2. تحليل الرسائل الخاصة (رياضيات، كود، محادثة)
-    
-    # محاولة حل المعادلات الرياضية مباشرة
-    if any(op in message_text for op in ['=', '+', '-', '*', '/', 'x', 'y']) and any(c.isdigit() for c in message_text):
-        response = AIModels.solve_math_problem(message_text)
-        send_menu_after_action(sender_id, response)
-        add_conversation_entry(sender_id, message_text, response)
-        return
-
-    # محاولة التعامل مع طلبات البرمجة
-    if any(keyword in message_text.lower() for keyword in ['كود', 'python', 'java', 'html', 'برمجة', 'دالة']):
-        response = AIModels.call_dark_code(message_text)
-        send_menu_after_action(sender_id, response)
-        add_conversation_entry(sender_id, message_text, response)
-        return
         
-    # 3. الدردشة العامة بالذكاء الاصطناعي مع السياق
+    # 2. الدردشة العامة بالذكاء الاصطناعي مع السياق
     history = get_conversation_history(sender_id)
     response = AIModels.grok4(message_text, history)
     
@@ -496,7 +357,7 @@ def handle_user_message(sender_id: str, message_text: str):
     add_conversation_entry(sender_id, message_text, response)
     
 def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
-    """معالجة المرفقات (صور، ملفات)"""
+    """معالجة المرفقات (صور)"""
     
     attachment_type = attachment.get('type')
     
@@ -505,17 +366,16 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
         current_state = user_state[sender_id]['state']
 
         if current_state == 'WAITING_EDIT_IMAGE':
-            # حالة انتظار الصورة لتحريرها ثم طلب الوصف
             user_state[sender_id]['state'] = 'WAITING_EDIT_DESC'
             user_state[sender_id]['pending_url'] = image_url
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
             return
 
         elif current_state == 'WAITING_OCR_IMAGE_FOR_ANALYSIS':
-            # حالة تحليل الصورة بعد طلب OCR
             user_state[sender_id]['state'] = None
             
             send_text_message(sender_id, "🔍 تم استلام الصورة. جاري استخراج النص...")
+            
             extracted_text = AIModels.call_ocr_api(image_url)
             
             if extracted_text and not extracted_text.startswith("❌"):
@@ -545,56 +405,18 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             user_state[sender_id]['pending_url'] = image_url # حفظ الرابط للتحرير/التحليل
             send_button_template(sender_id, text, buttons)
             
-    elif attachment_type == 'file':
-        # معالجة الملفات (PDF, DOCX, TXT)
-        file_url = attachment['payload']['url']
-        file_name = attachment['title']
-        
-        # لا يمكننا تنزيل الملف مباشرة من الرابط دون إعدادات متقدمة/خادم، لكن سنحاكي الاستخراج هنا
-        try:
-            # محاولة تنزيل الملف (افتراضياً لن ينجح في بيئة سريعة)
-            file_content = requests.get(file_url, timeout=30).content
-            
-            send_text_message(sender_id, "🔍 جاري استخراج النص من الملف...")
-            extracted_text = AIModels.extract_text_from_file(file_content, file_name)
-            
-            if extracted_text and extracted_text.strip() != "❌ فشل استخراج النص من الملف.":
-                user_state[sender_id]['last_extracted_text'] = extracted_text
-                text = f"✅ **تم استخراج النص من الملف ({file_name}):**\n{extracted_text[:500]}...\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
-                
-                buttons = [
-                    {"type": "postback", "title": "💡 شرح وتحليل", "payload": "OCR_ANALYZE"},
-                    {"type": "postback", "title": "📝 النص كاملاً", "payload": "OCR_SHOW_TEXT"},
-                ]
-                send_button_template(sender_id, text, buttons)
-            else:
-                send_menu_after_action(sender_id, f"❌ فشل استخراج النص من الملف: {file_name}")
-
-        except Exception as e:
-            logger.error(f"File handling error: {e}")
-            send_menu_after_action(sender_id, "⚠️ عذراً، فشلت معالجة الملف (تأكد من نوع الملف وحجمه).")
     
     else:
-        send_menu_after_action(sender_id, "⚠️ لا أستطيع حالياً معالجة هذا النوع من المرفقات. أرسل صورة أو ملف نصي/وثائقي فقط.")
+        send_menu_after_action(sender_id, "⚠️ لا أستطيع معالجة هذا النوع من المرفقات. أرسل صورة فقط.")
 
 def handle_postback(sender_id: str, postback_payload: str):
     """معالجة ضغط الأزرار (Postback)"""
     
     user_state[sender_id]['state'] = None
+    first_name = get_user_first_name(sender_id)
     
     # 1. القائمة الرئيسية/الترحيب
     if postback_payload in ['GET_STARTED_PAYLOAD', 'MENU_MAIN', 'MENU_NEW_CHAT']:
-        # التحقق من اسم المستخدم لإرسال رسالة ترحيب مخصصة
-        try:
-            user_info = requests.get(
-                f"https://graph.facebook.com/v19.0/{sender_id}",
-                params={"access_token": PAGE_ACCESS_TOKEN, "fields": "first_name"}
-            ).json()
-            first_name = user_info.get('first_name', 'مستخدم')
-            db.add_or_update_user(sender_id, first_name)
-        except Exception:
-            first_name = "مستخدم"
-            
         send_welcome_and_guidance(sender_id, first_name, show_full_menu=True)
 
     # 2. إنشاء صورة
@@ -609,15 +431,13 @@ def handle_postback(sender_id: str, postback_payload: str):
         
     # 4. بدء تحرير صورة من القائمة أو من زر سريع
     elif postback_payload in ['MENU_EDIT_IMAGE', 'START_EDIT_FROM_IMG']:
-        image_url = user_state[sender_id].pop('pending_url', None) # قد يكون موجوداً إذا أرسل الصورة أولاً
+        image_url = user_state[sender_id].pop('pending_url', None)
         
         if image_url:
-            # الصورة موجودة -> اطلب الوصف
             user_state[sender_id]['state'] = 'WAITING_EDIT_DESC'
             user_state[sender_id]['pending_url'] = image_url
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
         else:
-            # الصورة غير موجودة -> اطلب الصورة أولاً
             user_state[sender_id]['state'] = 'WAITING_EDIT_IMAGE'
             send_text_message(sender_id, "✏️ **أرسل الصورة التي تريد تحريرها الآن:**")
 
@@ -625,7 +445,7 @@ def handle_postback(sender_id: str, postback_payload: str):
     elif postback_payload.startswith('OCR_'):
         extracted_text = user_state[sender_id].get('last_extracted_text', '')
         if not extracted_text:
-            send_menu_after_action(sender_id, "❌ انتهت صلاحية النص. يرجى إرسال الصورة/الملف مجدداً.")
+            send_menu_after_action(sender_id, "❌ انتهت صلاحية النص. يرجى إرسال الصورة مجدداً.")
             return
 
         send_text_message(sender_id, "⏳ جاري المعالجة...")
@@ -636,7 +456,6 @@ def handle_postback(sender_id: str, postback_payload: str):
             response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}..."
             
         elif postback_payload == 'OCR_TRANSLATE':
-            # تحديد لغة الترجمة (افتراضياً إلى العربية إذا كان النص إنجليزي/عربي)
             is_arabic = any('\u0600' <= char <= '\u06FF' for char in extracted_text[:100])
             target_lang = "العربية" if not is_arabic else "الإنجليزية"
             
@@ -645,12 +464,9 @@ def handle_postback(sender_id: str, postback_payload: str):
             response_text = f"🌐 **الترجمة إلى {target_lang}:**\n\n{translation}"
             
         elif postback_payload == 'OCR_ANALYZE':
-            prompt = f"""حلل النص التالي واشرح محتواه بالتفصيل (إذا كان تمريناً فقدم الحل، وإذا كان نصاً فقدم شرحاً): 
+            prompt = f"""حلل النص التالي واشرح محتواه بالتفصيل: 
 {extracted_text}
-
-**قواعد التنسيق الرياضي:**
-✓ وضوح التنسيق: اكتب جميع المعادلات والنتائج بتنسيق واضح ومفهوم
-✓ استخدم الرموز البديلة: (a/b) بدلاً من الكسور، و√x بدلاً من الجذر"""
+قدم شرحاً مبسطاً ومفيداً للطالب."""
             analysis = AIModels.grok4(prompt)
             response_text = f"💡 **تحليل وشرح النص:**\n\n{analysis}"
             
@@ -665,7 +481,6 @@ def webhook():
     """معالجة جميع طلبات فيسبوك الواردة"""
     
     if request.method == 'GET':
-        # 1. التحقق من الويب هوك (Verification)
         mode = request.args.get('hub.mode')
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
@@ -678,7 +493,6 @@ def webhook():
             return 'Invalid Verification Token', 403
 
     elif request.method == 'POST':
-        # 2. استقبال الرسائل والأحداث (Messaging)
         data = request.get_json()
 
         for entry in data.get('entry', []):
@@ -689,7 +503,6 @@ def webhook():
                 if messaging_event.get('message') and messaging_event['message'].get('text'):
                     message = messaging_event['message']
                     
-                    # 💡 يتم هنا التعرف على Quick Reply ومعالجته كـ Postback
                     if message.get('quick_reply'):
                         handle_postback(sender_id, message['quick_reply']['payload'])
                     else:
@@ -700,7 +513,7 @@ def webhook():
                     for attachment in messaging_event['message']['attachments']:
                         handle_attachment(sender_id, attachment)
                 
-                # ج. معالجة ضغط الأزرار (Postback) - لا يذهب للذكاء الاصطناعي
+                # ج. معالجة ضغط الأزرار (Postback)
                 elif messaging_event.get('postback'):
                     handle_postback(sender_id, messaging_event['postback']['payload'])
                 
@@ -710,15 +523,11 @@ def webhook():
 
         return 'OK', 200
 
+# ====================================================================
+# 🚀 تشغيل التطبيق (باستخدام Gunicorn عند النشر)
+# ====================================================================
+
 if __name__ == '__main__':
-    # التأكد من عمل الدوال عند التشغيل
-    try:
-        from web_server import start_web_server
-        start_web_server()
-    except ImportError:
-        logger.warning("Web server module not found, skipping.")
-    except Exception as e:
-        logger.warning(f"Failed to start web server: {e}")
-        
-    logger.info("🚀 بدء تشغيل بوت فيسبوك ماسنجر - بويكتا")
-    app.run(host='0.0.0.0', port=os.environ.get('PORT', 3000))
+    logger.info("🚀 بدء تشغيل بوت فيسبوك ماسنجر (مكتبات أساسية)")
+    # استخدام المنفذ 8080 افتراضياً، سيتم استبداله بـ Gunicorn في بيئة الإنتاج
+    app.run(host='0.0.0.0', port=os.environ.get('PORT', 8080))
