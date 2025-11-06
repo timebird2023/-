@@ -1,7 +1,3 @@
 flask
 requests
-Pillow
-sympy
-PyPDF2
-python-docx
 gunicorn
