@@ -26,7 +26,6 @@ AI_ASSISTANT_NAME = "بويكتا"
 GROK_API_URL = 'https://sii3.top/api/grok4.php'
 OCR_API = 'https://sii3.top/api/OCR.php'
 NANO_BANANA_API = 'https://sii3.top/api/nano-banana.php' # لإنشاء وتحرير الصور (المحاولة الثانية للتحرير)
-# تم تغيير GPT_IMAGER_API إلى FLUX_MAX_API ليتناسب مع تحديث الروبوت
 FLUX_MAX_API = 'https://sii3.top/api/flux-max.php' # لتحرير الصور (المحاولة الأولى)
 
 # الذاكرة المؤقتة وحالة المستخدم (بديل SQLite)
@@ -197,11 +196,24 @@ class AIModels:
             payload = {"link": image_url, "text": instruction}
             response = requests.post(OCR_API, data=payload, timeout=60)
             if response.ok:
-                result_json = response.json()
-                extracted_text = result_json.get('response', '')
+                try:
+                    result_json = response.json()
+                except json.JSONDecodeError:
+                    # قد يكون الرد ليس JSON صالحاً، نتعامل معه كنص عادي
+                    extracted_text = response.text
+                else:
+                    extracted_text = result_json.get('response', '')
+                
+                # --- [التصحيح المطبق: معالجة رسالة الخطأ المحددة] ---
+                error_message = "Something went wrong. Please try again."
+                if extracted_text and error_message in extracted_text:
+                    logger.error(f"OCR API returned specific error: {extracted_text}")
+                    # إرسال رسالة خطأ واضحة بدلاً من النص غير المرغوب فيه
+                    return f"❌ فشلت خدمة استخراج النص (OCR). يرجى التأكد من جودة الصورة أو محاولة صورة أخرى. (الخطأ: {error_message})"
+                # ----------------------------------------------------
+                
                 if not extracted_text:
-                    return ""
-                # تحسين تنظيف النص المستخرج
+                    return "❌ فشل استخراج النص: لا يوجد نص في الرد."
                 return extracted_text.replace('\\n', '\n').strip()
             else:
                 return f"❌ خطأ في OCR API (رمز: {response.status_code})"
@@ -215,19 +227,24 @@ class AIModels:
         try:
             english_prompt = AIModels._translate_to_english(prompt)
             payload = {'text': english_prompt}
-            response = requests.post(NANO_BANANA_API, data=payload, timeout=90) # زيادة المهلة
+            response = requests.post(NANO_BANANA_API, data=payload, timeout=90) 
+            
             if response.ok:
-                data = response.json()
-                # Nano-Banana يرسل خطأً أحياناً ولكنه يعمل، لذا نعتمد على محاولة استخراج الرابط
-                image_url = data.get('url') or data.get('image')
-                if image_url:
-                    return image_url
-                
-                # إذا لم يكن هناك رابط، قد يكون خطأ فعلي
-                logger.error(f"Nano-Banana Create Error (No URL): {data}")
-                return None
+                try:
+                    data = response.json()
+                    # بحث مرن عن الرابط
+                    image_url = data.get('url') or data.get('image') 
+                    
+                    if image_url and 'http' in image_url: # التأكد من أنه رابط صالح
+                        return image_url
+                    
+                    logger.error(f"Nano-Banana Create Failed: No valid URL found in response data: {data}")
+                    return None
+                except json.JSONDecodeError:
+                    logger.error(f"Nano-Banana Create Failed: Invalid JSON response: {response.text}")
+                    return None
             else:
-                logger.error(f"Nano-Banana Create API Error: {response.text}")
+                logger.error(f"Nano-Banana Create API Error (Status: {response.status_code}): {response.text}")
                 return None
         except Exception as e:
             logger.error(f"Image Create Exception: {e}")
@@ -240,26 +257,33 @@ class AIModels:
 
         # 1. محاولة Flux-Max (الخدمة المحدثة)
         try:
-            # مثال POST: curl -X POST "https://sii3.top/api/flux-max.php" -d "prompt=Make the snake red" -d "image=..."
             payload = {'prompt': english_desc, 'image': image_url} 
             response = requests.post(FLUX_MAX_API, data=payload, timeout=90)
             if response.ok:
-                data = response.json()
-                # عادةً ما يرسل الرابط في 'url'
-                if data.get('url'):
-                    return data.get('url')
+                try:
+                    data = response.json()
+                    flux_url = data.get('url')
+                    if flux_url and 'http' in flux_url:
+                        return flux_url
+                except json.JSONDecodeError:
+                    logger.warning(f"Flux-Max returned non-JSON/invalid response: {response.text}")
+                    pass 
         except Exception:
             logger.warning("Flux-Max edit failed, falling back to Nano-Banana")
             
         # 2. محاولة Nano-Banana (المحاولة الاحتياطية)
         try:
-            # مثال POST: {'text': english_desc, 'links': image_url}
             payload = {'text': english_desc, 'links': image_url}
             response = requests.post(NANO_BANANA_API, data=payload, timeout=90)
             if response.ok:
-                data = response.json()
-                if data.get('url') or data.get('image'):
-                    return data.get('url') or data.get('image')
+                try:
+                    data = response.json()
+                    nano_url = data.get('url') or data.get('image')
+                    if nano_url and 'http' in nano_url:
+                        return nano_url
+                except json.JSONDecodeError:
+                    logger.warning(f"Nano-Banana Edit returned non-JSON/invalid response: {response.text}")
+                    pass
         except Exception as e:
             logger.error(f"Nano-Banana Edit Exception: {e}")
             return None
@@ -277,7 +301,6 @@ class AIModels:
             )
             if response.ok:
                 result = response.json()
-                # يتم بناء الجملة المترجمة من الأجزاء المستخرجة
                 if result and isinstance(result, list) and len(result) > 0 and isinstance(result[0], list):
                     return ''.join([item[0] for item in result[0] if isinstance(item, list) and len(item) > 0 and item[0]])
         except Exception:
@@ -392,20 +415,25 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             
             extracted_text = AIModels.call_ocr_api(image_url)
             
-            if extracted_text and not extracted_text.startswith("❌"):
+            # في حالة الخطأ، تم بالفعل إعداد رسالة الخطأ الواضحة في دالة call_ocr_api
+            if extracted_text.startswith("❌"): 
+                send_menu_after_action(sender_id, extracted_text)
+                return
+
+            if extracted_text:
                 user_state[sender_id]['last_extracted_text'] = extracted_text
                 # يتم عرض الخيارات الثلاثة لـ OCR
                 text = f"✅ **تم استخراج النص:**\n{extracted_text[:300]}...\n\n❓ **ماذا تريد أن تفعل بهذا النص؟**"
                 
                 # خيارات OCR (Button Template لعدم اختفائها)
                 buttons = [
-                    {"type": "postback", "title": "📝 النص المستخرج فقط", "payload": "OCR_SHOW_TEXT"}, # تم تعديل العنوان ليكون واضحاً
+                    {"type": "postback", "title": "📝 النص المستخرج فقط", "payload": "OCR_SHOW_TEXT"}, 
                     {"type": "postback", "title": "🌐 ترجمة النص", "payload": "OCR_TRANSLATE"},
                     {"type": "postback", "title": "💡 شرح وتحليل", "payload": "OCR_ANALYZE"},
                 ]
                 send_button_template(sender_id, text, buttons)
             else:
-                send_menu_after_action(sender_id, f"❌ فشل استخراج النص من الصورة. {extracted_text}")
+                send_menu_after_action(sender_id, "❌ فشل استخراج النص من الصورة. حاول بصورة ذات جودة أفضل.")
             
             return
         
@@ -459,8 +487,8 @@ def handle_postback(sender_id: str, postback_payload: str):
     # 5. خيارات OCR/التحليل بعد الاستخراج
     elif postback_payload.startswith('OCR_'):
         extracted_text = user_state[sender_id].get('last_extracted_text', '')
-        if not extracted_text:
-            send_menu_after_action(sender_id, "❌ انتهت صلاحية النص. يرجى إرسال الصورة مجدداً.")
+        if not extracted_text or extracted_text.startswith("❌"): # تحقق إضافي للخطأ
+            send_menu_after_action(sender_id, "❌ انتهت صلاحية النص أو حدث خطأ مسبق. يرجى إرسال الصورة مجدداً.")
             return
 
         send_text_message(sender_id, "⏳ جاري المعالجة...")
@@ -472,7 +500,7 @@ def handle_postback(sender_id: str, postback_payload: str):
             response_text = f"📝 **النص المستخرج كاملاً:**\n\n{extracted_text[:1800]}"
             
         elif postback_payload == 'OCR_TRANSLATE':
-            # تحديد اللغة الهدف للترجمة
+            # تحديد اللغة الهدف للترجمة بناءً على وجود الأحرف العربية
             is_arabic = any('\u0600' <= char <= '\u06FF' for char in extracted_text[:100])
             target_lang = "العربية" if not is_arabic else "الإنجليزية"
             
