@@ -7,9 +7,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
 import logging
 
-# ====================================================================
-# 📚 الإعدادات الأساسية
-# ====================================================================
+# ... (الإعدادات الأساسية كما هي) ...
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
@@ -44,7 +42,7 @@ app = Flask(__name__)
 # 🛠️ دوال الشبكة وإرسال الرسائل
 # ====================================================================
 
-# ... (دوال send_api_request, send_text_message, send_quick_replies, send_button_template) ...
+# ... (دوال إرسال الرسائل كما هي) ...
 def send_api_request(payload: Dict[str, Any]) -> bool:
     """دالة عامة لإرسال طلب إلى Messenger Send API"""
     params = {'access_token': PAGE_ACCESS_TOKEN}
@@ -126,14 +124,18 @@ def send_attachment(recipient_id: str, attachment_type: str, url: str):
 def send_attachment_and_note(recipient_id: str, attachment_type: str, url: str, success_text: str):
     """**دالة جديدة: إرسال المرفق متبوعًا برسالة توضيحية**"""
     
-    # 1. محاولة إرسال المرفق مباشرة
+    # 1. محاولة إرسال المرفق مباشرة (لأنه يعمل في الماسنجر العادي)
     send_attachment(recipient_id, attachment_type, url)
     
     # 2. إرسال رسالة النجاح والملاحظة
-    note = f"""
-**ملاحظة حول العرض (فقط لتطبيق فيسبوك لايت):**
-إذا لم تظهر الصورة/الفيديو، يرجى فتح الرسالة عبر **تطبيق فيسبوك ماسنجر** حيث تظهر المرفقات بشكل سليم.
+    if attachment_type != 'audio': # لا نحتاج الملاحظة للموسيقى التي تعمل
+        note = f"""
+**ملاحظة حول العرض (لمستخدمي فيسبوك لايت):**
+إذا لم يظهر المرفق (الصورة/الفيديو)، يرجى فتح الرسالة عبر **تطبيق فيسبوك ماسنجر** حيث تظهر المرفقات بشكل سليم.
 """
+    else:
+        note = ""
+
     send_menu_after_action(recipient_id, success_text + note)
 
 
@@ -236,10 +238,17 @@ class AIModels:
 
     @staticmethod
     def call_ocr_api(image_url: str, instruction: str = "") -> str:
-        """استدعاء OCR API (يستخدم data=)"""
+        """**استدعاء OCR API (مع تنسيق الرابط كقائمة مفصولة بـ ", ")**"""
         try:
-            # مثال POST: -d 'text=describe the image' -d 'link=...'
-            payload = {"link": image_url, "text": instruction}
+            # 📌 الحل: نرسل الروابط كقائمة مفصولة بـ ", " حتى لو كانت صورة واحدة، كما هو متوقع في OCR.py
+            # يتم إرسال الرابط المحسّن (مع access_token) في دالة handle_attachment
+            link_string = ""
+            if image_url:
+                 # استخدام ", ".join لتغليف الرابط الواحد في التنسيق المطلوب
+                link_string = ", ".join([image_url]) 
+            
+            payload = {"link": link_string, "text": instruction}
+            
             # استخدام data=payload
             response = requests.post(OCR_API, data=payload, timeout=60)
             
@@ -316,37 +325,7 @@ class AIModels:
 # 🎯 منطق معالجة الرسائل والأحداث
 # ====================================================================
 
-def get_user_first_name(sender_id: str) -> str:
-    # دالة جلب الاسم (تم الإبقاء عليها كما هي)
-    try:
-        user_info = requests.get(
-            f"https://graph.facebook.com/v19.0/{sender_id}",
-            params={"access_token": PAGE_ACCESS_TOKEN, "fields": "first_name"}
-        ).json()
-        return user_info.get('first_name', 'مستخدم')
-    except Exception:
-        return 'مستخدم'
-
-def send_welcome_and_guidance(recipient_id: str, first_name: str, show_full_menu=True):
-    """إرسال رسالة ترحيب وشرح للمستخدم الجديد (تم التحديث)"""
-    
-    if user_state[recipient_id]['first_time']:
-        welcome_text = f"""👋 أهلاً بك يا **{first_name}**! أنا {AI_ASSISTANT_NAME}.
-
-🌟 **كيف أساعدك؟ (الخدمات المتاحة):**
-* **🖼️ إنشاء صور:** (النموذج العادي) أرسل وصفك وسأحولهُ إلى صورة.
-* **🎵 إنشاء موسيقى:** أنشئ مقطوعة موسيقية مدتها 15 ثانية بوصف بسيط (يعمل بشكل جيد ✅).
-* **📝 تحليل الصور (OCR):** أرسل صورة تحتوي على نص وسأقوم باستخراجه وتحليله.
-* **💬 محادثة مباشرة:** أرسل أي سؤال وسأجيبك بذكاء.
-
-⬇️ **اختر خدمتك من الأزرار أدناه:**"""
-    
-        send_text_message(recipient_id, welcome_text)
-        user_state[recipient_id]['first_time'] = False
-    
-    if show_full_menu:
-        send_menu_after_action(recipient_id, "💡 اختر الخدمة التالية:")
-
+# ... (بقية الدوال المساعدة) ...
 
 def handle_user_message(sender_id: str, message_text: str):
     """معالجة الرسائل النصية العامة"""
@@ -394,7 +373,7 @@ def handle_user_message(sender_id: str, message_text: str):
         final_url = AIModels.create_music_ai(message_text)
         
         if final_url:
-            send_attachment_and_note(sender_id, 'audio', final_url, "✅ تم إنشاء الموسيقى بنجاح!")
+            send_attachment_and_note(sender_id, 'audio', final_url, "✅ تم إنشاء الموسيقى بنجاح! اختر خدمتك التالية:")
         else:
             send_menu_after_action(sender_id, "⚠️ عذراً، فشل إنشاء المقطوعة الموسيقية.")
         
@@ -415,13 +394,14 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
     if attachment_type == 'image':
         
         # 📌 الإصلاح الحاسم لـ OCR: إضافة رمز الوصول لتمكين الخادم الخارجي من قراءة الصورة
-        image_url = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
+        image_url_for_ocr = f"{attachment['payload']['url']}&access_token={PAGE_ACCESS_TOKEN}"
+        image_url_original = attachment['payload']['url']
         
         current_state = user_state[sender_id]['state']
 
         if current_state == 'WAITING_EDIT_IMAGE':
             user_state[sender_id]['state'] = 'WAITING_EDIT_DESC'
-            user_state[sender_id]['pending_url'] = image_url
+            user_state[sender_id]['pending_url'] = image_url_original # نستخدم الرابط الأصلي للتحرير
             send_text_message(sender_id, "✏️ **أرسل وصف التعديل المطلوب الآن:**")
             return
 
@@ -430,8 +410,8 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
             
             send_text_message(sender_id, "🔍 تم استلام الصورة. جاري استخراج النص...")
             
-            # يتم استخدام الرابط المحسّن الآن
-            extracted_text = AIModels.call_ocr_api(image_url, instruction="")
+            # 📌 استخدام الرابط المحسّن الآن + تنسيق ", ".join() داخل call_ocr_api
+            extracted_text = AIModels.call_ocr_api(image_url_for_ocr, instruction="")
             
             if extracted_text and not extracted_text.startswith("❌"):
                 user_state[sender_id]['last_extracted_text'] = extracted_text
@@ -456,7 +436,7 @@ def handle_attachment(sender_id: str, attachment: Dict[str, Any]):
                 {"type": "postback", "title": "✏️ تحرير هذه الصورة", "payload": "START_EDIT_FROM_IMG"},
                 {"type": "postback", "title": "🔙 القائمة الرئيسية", "payload": "MENU_MAIN"},
             ]
-            user_state[sender_id]['pending_url'] = attachment['payload']['url'] # حفظ الرابط الأصلي
+            user_state[sender_id]['pending_url'] = image_url_original # حفظ الرابط الأصلي للتحرير
             send_button_template(sender_id, text, buttons)
             
     
