@@ -6,7 +6,7 @@ import logging
 from collections import defaultdict
 
 # ====================================================================
-# 📚 الإعدادات
+# 📚 الإعدادات الأساسية
 # ====================================================================
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
@@ -14,175 +14,137 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# 🔑 التوكنات (تأكد من وجودها في إعدادات Vercel)
 VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', 'boykta2025')
 PAGE_ACCESS_TOKEN = "EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9"
 
-# الروابط
+# 🌐 رابط الذكاء الاصطناعي فقط
 AI_API_URL = "http://fi8.bot-hosting.net:20163/elos-gpt3"
-OCR_API_URL = "https://api.ocr.space/parse/image"
-OCR_API_KEY = "helloworld"
 
-# ذاكرة
+# ذاكرة بسيطة للمحادثة (لجعل البوت يتذكر سياق الحديث)
 in_memory_conversations = defaultdict(list)
 
 # ====================================================================
-# 🛠️ دوال المساعدة
+# 🛠️ دوال الإرسال
 # ====================================================================
 
 def send_api_request(payload):
     params = {'access_token': PAGE_ACCESS_TOKEN}
     try:
-        requests.post('https://graph.facebook.com/v19.0/me/messages', params=params, json=payload, timeout=10)
+        response = requests.post(
+            'https://graph.facebook.com/v19.0/me/messages',
+            params=params, json=payload, timeout=10
+        )
+        if response.status_code != 200:
+            logger.error(f"❌ Send Error: {response.text}")
     except Exception as e:
-        logger.error(f"❌ Error: {e}")
+        logger.error(f"❌ Connection Error: {e}")
 
 def send_text_message(recipient_id, text):
-    payload = {'recipient': {'id': recipient_id}, 'message': {'text': text}}
-    send_api_request(payload)
-
-def send_image_url(recipient_id, image_url):
+    """إرسال رسالة نصية"""
     payload = {
         'recipient': {'id': recipient_id},
-        'message': {
-            'attachment': {
-                'type': 'image',
-                'payload': {'url': image_url, 'is_reusable': True}
-            }
-        }
+        'message': {'text': text[:2000]} # فيسبوك يقبل 2000 حرف كحد أقصى للرسالة الواحدة
     }
     send_api_request(payload)
 
-def is_like_or_sticker(message):
-    """فحص ذكي للجام والستيكر"""
-    if 'sticker_id' in message:
-        return True
-    if 'attachments' in message:
-        for att in message['attachments']:
-            if att.get('payload', {}).get('sticker_id'):
-                return True
-            # فحص إضافي للروابط المعروفة للستيكرز
-            url = att.get('payload', {}).get('url', '')
-            if 'sticker' in url or 'Sticker' in url:
-                return True
-    return False
+def send_typing_on(recipient_id):
+    """إظهار مؤشر 'جاري الكتابة...'"""
+    payload = {
+        'recipient': {'id': recipient_id},
+        'sender_action': 'typing_on'
+    }
+    send_api_request(payload)
 
 # ====================================================================
-# 🧠 المنطق (OCR المحسن + AI)
+# 🧠 الذكاء الاصطناعي
 # ====================================================================
 
-def process_ai_logic(user_id, user_text):
-    system_instruction = (
-        "Instructions: You are a smart assistant. "
-        "If user asks to CREATE/DRAW image -> reply 'CMD_IMAGE: English description'. "
-        "Else -> reply normally. "
-        f"\nUser Request: {user_text}"
-    )
+def handle_ai_chat(user_id, user_text):
+    """إرسال النص للذكاء الاصطناعي والرد"""
+    
+    # 1. تجهيز السياق (اختياري لتحسين المحادثة)
+    # نأخذ آخر 3 ردود ليتذكر البوت عما نتحدث
+    history = in_memory_conversations[user_id][-3:]
+    full_prompt = user_text
+    
+    if history:
+        context_str = "\n".join([f"User: {h[0]}\nBot: {h[1]}" for h in history])
+        full_prompt = f"{context_str}\nUser: {user_text}\nBot:"
 
     try:
-        response = requests.get(AI_API_URL, params={'text': system_instruction}, timeout=45)
+        # 2. استدعاء API
+        response = requests.get(AI_API_URL, params={'text': full_prompt}, timeout=45)
+        
         if response.ok:
-            ai_reply = response.text.strip()
+            reply = response.text.strip()
+            
+            # تنظيف الرد إذا كان JSON (احتياطاً)
             try:
-                json_data = json.loads(ai_reply)
+                json_data = json.loads(reply)
                 if isinstance(json_data, dict):
-                    ai_reply = json_data.get('response', json_data.get('reply', ai_reply))
+                    reply = json_data.get('response', json_data.get('reply', reply))
             except:
                 pass
 
-            if "CMD_IMAGE:" in ai_reply:
-                prompt = ai_reply.split("CMD_IMAGE:", 1)[1].strip().split('\n')[0]
-                send_text_message(user_id, f"🎨 جاري الرسم: {prompt}")
-                safe_prompt = requests.utils.quote(prompt)
-                send_image_url(user_id, f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true")
-            else:
-                in_memory_conversations[user_id].append(user_text)
-                send_text_message(user_id, ai_reply)
-        else:
-            send_text_message(user_id, "⚠️ الخادم مشغول.")
-    except:
-        send_text_message(user_id, "خطأ في الاتصال.")
+            # 3. حفظ المحادثة
+            in_memory_conversations[user_id].append((user_text, reply))
+            # الحفاظ على حجم الذاكرة صغيراً
+            if len(in_memory_conversations[user_id]) > 5:
+                in_memory_conversations[user_id].pop(0)
 
-def process_ocr(user_id, image_url):
-    """
-    استخراج النص باستخدام المحرك 2 لدعم اللغات المختلطة
-    """
-    send_text_message(user_id, "🔍 جاري استخراج النص (عربي/فرنسي/إنجليزي)...")
-    try:
-        payload = {
-            'apikey': OCR_API_KEY,
-            'url': image_url,
-            'language': 'ara',      # نبقي العربية كلغة أساسية
-            'isOverlayRequired': False,
-            'OCREngine': '2'        # 🌟 هام جداً: المحرك 2 أفضل بكثير للنصوص المختلطة واللاتينية
-        }
-        response = requests.post(OCR_API_URL, data=payload, timeout=25)
-        
-        if response.ok:
-            result = response.json()
-            if result.get('ParsedResults'):
-                text = result['ParsedResults'][0].get('ParsedText', '').strip()
-                if text:
-                    # تقسيم النص إذا كان طويلاً جداً (قيود فيسبوك 2000 حرف)
-                    if len(text) > 1900:
-                        send_text_message(user_id, f"✅ النص المستخرج (جزء 1):\n\n{text[:1900]}")
-                        send_text_message(user_id, f"تكملة:\n{text[1900:]}")
-                    else:
-                        send_text_message(user_id, f"✅ النص المستخرج:\n\n{text}")
-                else:
-                    send_text_message(user_id, "❓ الصورة واضحة ولكن لم أتمكن من قراءة النص (قد يكون الخط غير واضح).")
-            else:
-                send_text_message(user_id, "⚠️ فشل استخراج البيانات من الصورة.")
+            # 4. إرسال الرد
+            send_text_message(user_id, reply)
         else:
-            send_text_message(user_id, "⚠️ خدمة الصور مشغولة حالياً.")
+            send_text_message(user_id, "عذراً، الخادم مشغول حالياً.")
+            
     except Exception as e:
-        logger.error(f"OCR Error: {e}")
-        send_text_message(user_id, "خطأ غير متوقع.")
+        logger.error(f"AI API Error: {e}")
+        send_text_message(user_id, "حدث خطأ في الاتصال.")
 
 # ====================================================================
-# 🌐 Webhook
+# 🌐 Webhook (نقطة الاتصال مع فيسبوك)
 # ====================================================================
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
+    # 1. التحقق من الرابط (Verify Token)
     if request.method == 'GET':
         if request.args.get('hub.verify_token') == VERIFY_TOKEN:
             return request.args.get('hub.challenge'), 200
-        return 'Error', 403
+        return 'Invalid Token', 403
 
+    # 2. استقبال الرسائل
     elif request.method == 'POST':
         data = request.get_json()
         if data:
             for entry in data.get('entry', []):
                 for event in entry.get('messaging', []):
                     sender_id = event['sender']['id']
-                    if 'delivery' in event or 'read' in event: continue
                     
-                    message = event.get('message')
-                    if not message: continue
-
-                    # 1. فحص الستيكر/الجام
-                    if is_like_or_sticker(message):
-                        send_text_message(sender_id, "👍")
-                        continue 
-
-                    # 2. فحص الصور (OCR)
-                    if message.get('attachments'):
-                        for attachment in message['attachments']:
-                            if attachment['type'] == 'image':
-                                process_ocr(sender_id, attachment['payload']['url'])
-                                break
+                    # تجاهل رسائل التسليم والقراءة
+                    if 'delivery' in event or 'read' in event:
+                        continue
                     
-                    # 3. النصوص (AI)
-                    elif message.get('text'):
-                        text = message['text'].strip()
-                        if text in ["👍", "👍🏻", "👍🏼"]:
-                             send_text_message(sender_id, "👍")
-                        else:
-                            # إظهار مؤشر الكتابة
-                            send_api_request({'recipient': {'id': sender_id}, 'sender_action': 'typing_on'})
-                            process_ai_logic(sender_id, text)
+                    # معالجة النصوص فقط
+                    if event.get('message') and event['message'].get('text'):
+                        user_text = event['message']['text'].strip()
+                        
+                        # إظهار "جاري الكتابة" لإعطاء طابع حيوي
+                        send_typing_on(sender_id)
+                        
+                        # معالجة الرد
+                        handle_ai_chat(sender_id, user_text)
+                    
+                    # إذا أرسل المستخدم مرفقاً (صورة/فيديو)، نتجاهله أو نرد برسالة بسيطة
+                    elif event.get('message') and event['message'].get('attachments'):
+                        send_text_message(sender_id, "عذراً، أنا أدعم المحادثات النصية فقط حالياً.")
 
         return 'OK', 200
+
+# ====================================================================
+# 🚀 التشغيل
+# ====================================================================
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
