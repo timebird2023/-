@@ -7,7 +7,7 @@ import logging
 import random
 import urllib.parse
 import io
-import re # 🆕 لمعالجة النصوص بذكاء
+import re # 🆕 مكتبة التعابير القياسية للكشف عن الرموز
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -27,7 +27,7 @@ app = Flask(__name__)
 VERIFY_TOKEN = 'boykta2025'
 PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9'
 
-# 🛡️ المفاتيح الآمنة
+# 🛡️ المفاتيح
 PARTIAL_KEYS = [
     "mwhCmwL1LNpcQvdMTHGvWGdyb3FYfU2hS7oMXV65vqEfROmTVr0q",
     "uKouecFAYlbnRuy0Nn2rWGdyb3FY15KRhNRZyQsBUBBugKcU8C2N",
@@ -36,38 +36,63 @@ PARTIAL_KEYS = [
 def get_key(index): return "gsk_" + PARTIAL_KEYS[index]
 
 KEY_PRIMARY = get_key(0)
-KEY_BACKUP  = get_key(1)
 KEY_VISION  = get_key(2)
 
 MODEL_CHAT   = "llama-3.1-8b-instant" 
 MODEL_VISION = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 # ====================================================================
-# 🗄️ الذاكرة الذكية
+# 🗄️ الذاكرة
 # ====================================================================
 user_db = defaultdict(lambda: {
     'history': [],
-    'last_image_analysis': None, # هنا نخزن تحليل الصورة الأخيرة
-    'last_image_url': None
+    'last_image_context': None # لتذكر محتوى الصورة الأخيرة
 })
 
 # ====================================================================
-# 🎨 محرك الرسم (Math Renderer)
+# 🎨 محرك الرسم (Math Renderer) - المعدل
 # ====================================================================
-def render_solution_to_image(text):
-    """تحويل الحلول الرياضية لصور"""
+def contains_math(text):
+    """
+    دالة فحص دقيقة: هل يحتوي النص على رموز رياضيات تستدعي تحويله لصورة؟
+    """
+    # نبحث عن رموز LaTeX الشائعة
+    math_patterns = [
+        r'\$',          # علامة الدولار
+        r'\\frac',      # الكسور
+        r'\\sqrt',      # الجذور
+        r'\\times',     # الضرب
+        r'\^',          # الأسس
+        r'\\_',         # الشرطة السفلية
+        r'\\mathbb',    # الخطوط الرياضية
+        r'\\alpha', r'\\beta', r'\\theta', # الرموز اليونانية
+        r'\\approx',    # التقريب
+        r'\\infty'      # اللانهاية
+    ]
+    
+    for pattern in math_patterns:
+        if re.search(pattern, text):
+            return True
+    return False
+
+def render_text_to_image(text):
+    """تحويل النص الكامل إلى صورة واضحة"""
     try:
-        height = len(text.split('\n')) * 0.5 + 4
-        if height > 50: height = 50 # حد أقصى للطول
+        # حساب ارتفاع الصورة بناء على عدد الأسطر
+        lines = text.split('\n')
+        height = len(lines) * 0.6 + 2
+        if height < 4: height = 4
         
         fig, ax = plt.subplots(figsize=(12, height))
         ax.axis('off')
         
-        # تغليف النص
-        wrapped_text = "\n".join(textwrap.wrap(text, width=75))
+        # تحسين عرض النص
+        wrapped_text = "\n".join(textwrap.wrap(text, width=70, replace_whitespace=False))
         
+        # رسم النص (ندعم اللغة العربية والرموز بشكل بسيط)
+        # ملاحظة: matplotlib لا يدعم rendering LaTeX العربي المعقد 100% لكنه يعرض الكود بوضوح
         ax.text(0.5, 0.5, wrapped_text, ha='center', va='center', 
-                fontsize=16, family='serif', wrap=True)
+                fontsize=18, family='serif', wrap=True)
         
         buf = io.BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
@@ -79,7 +104,7 @@ def render_solution_to_image(text):
         return None
 
 # ====================================================================
-# 🧠 دماغ الذكاء الاصطناعي (Groq Logic)
+# 🧠 العقل المدبر (Brain)
 # ====================================================================
 
 def call_groq(messages, model, key):
@@ -87,75 +112,70 @@ def call_groq(messages, model, key):
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     try:
         res = requests.post(url, json={"model": model, "messages": messages}, headers=headers, timeout=50)
-        if res.status_code in [400, 404] and "scout" in model:
-             return call_groq(messages, "llama-3.2-11b-vision-preview", key)
         res.raise_for_status()
         return res.json()['choices'][0]['message']['content']
-    except Exception as e:
-        logger.error(f"Groq Error: {e}")
-        raise e
-
-def analyze_image(image_url):
-    """Llama 4: يحلل الصورة ويستخرج ما فيها"""
-    prompt = """
-    Analyze this image in detail.
-    1. Extract all text/math exactly.
-    2. Describe what kind of image it is (Math problem, Quran, General photo, Meme?).
-    3. Output format:
-       TYPE: [MATH/RELIGIOUS/GENERAL]
-       CONTENT: [The extracted text]
-       DESCRIPTION: [Brief description]
-    """
-    msgs = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_url}}]}]
-    try:
-        return call_groq(msgs, MODEL_VISION, KEY_VISION)
     except:
         return None
 
+def analyze_image_content(image_url):
+    """تحليل الصورة واستخراج المحتوى والسياق"""
+    prompt = """
+    Analyze this image comprehensively.
+    1. Extract ALL text and math formulas exactly as they appear.
+    2. Identify the TYPE: (Math Problem, Religious Text, General Photo, Screenshot).
+    3. Output format:
+       TYPE: [Type]
+       CONTENT: [Extracted Text]
+       CONTEXT: [Brief description of what this is]
+    """
+    msgs = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_url}}]}]
+    return call_groq(msgs, MODEL_VISION, KEY_VISION)
+
 def brain_process(user_id, user_text, image_context=None):
     """
-    🧠 العقل المدبر: يحدد نية المستخدم (رسم، صوت، حل، دردشة)
+    🧠 العقل المركزي: يقرر ماذا يفعل بناءً على النية (Intent)
     """
     
-    # التعليمات الدائمة (System Prompt)
     system_prompt = f"""
     أنت "بويكتا" (Boykta)، مساعد ذكي جزائري.
     
-    🛑 تعليمات صارمة (Intent Detection):
-    1. إذا طلب المستخدم **رسم صورة** (مثال: "ارسم قطة", "تخيل منظر"):
-       - ابدأ ردك بـ: CMD_IMAGE:
-       - ثم اكتب الوصف الدقيق للصورة **باللغة الإنجليزية**.
+    مهمتك هي فهم نية المستخدم بدقة وتنفيذها:
+
+    1. **توليد الصور (Image Generation):**
+       - فقط إذا طلب المستخدم صراحة "إنشاء" أو "رسم" أو "تخيل" صورة محددة.
+       - المثال: "ارسم طائرة" -> نفذ الأمر.
+       - المثال: "هل يمكنك الرسم؟" -> أجب بنعم فقط ولا تنفذ.
+       - إذا كان أمراً بالتنفيذ، ابدأ ردك بـ: `CMD_IMAGE: <English Prompt>`
+
+    2. **تحويل النص لكلام (TTS):**
+       - فقط إذا طلب المستخدم "اقرأ هذا" أو "حول هذا النص لصوت" مع وجود نص محدد.
+       - المثال: "حول النص لصوت" (بدون نص) -> اطلب منه النص.
+       - المثال: "اقرأ: السلام عليكم" -> نفذ الأمر.
+       - للتنفيذ، ابدأ ردك بـ: `CMD_AUDIO: <Text to read>`
+
+    3. **حل التمارين والرياضيات (Math/Physics):**
+       - إذا كان السؤال علمياً، قم بحله بالتفصيل الممل (منهج جزائري).
+       - **هام جداً:** استخدم تنسيق LaTeX للمعادلات (مثل $x^2$ أو \\frac{{1}}{{2}}). الكود البرمجي سيحولها لصورة تلقائياً.
+
+    4. **الدردشة العامة:**
+       - كن ودوداً ومحترماً. أجب عن الأسئلة الدينية والأدبية بنص عادي.
     
-    2. إذا طلب المستخدم **تحويل كلام لصوت** (مثال: "قل هذا بصوت", "اقرأ النص"):
-       - ابدأ ردك بـ: CMD_AUDIO:
-       - ثم اكتب النص الذي يجب قراءته.
-    
-    3. إذا كان المستخدم يطلب **حل تمرين** أو شرح نص (خاصة إذا كان هناك سياق صورة):
-       - ابدأ ردك بـ: CMD_SOLVE:
-       - ثم قم بحل التمرين بالتفصيل الممل (منهج جزائري) واستخدم LaTeX للمعادلات.
-       
-    4. إذا كانت دردشة عادية:
-       - رد بشكل طبيعي وودود بصفتك "بويكتا".
-    
-    ℹ️ سياق إضافي (ماذا يوجد في الصورة الأخيرة): {image_context if image_context else "لا توجد صورة حالياً"}
+    ℹ️ سياق الصورة المرفقة (إن وجد): {image_context if image_context else "لا توجد صورة"}
     """
     
     history = user_db[user_id]['history']
     history.append({"role": "user", "content": user_text})
     
-    # إبقاء الذاكرة قصيرة لعدم تشتيت البوت
     messages = [{"role": "system", "content": system_prompt}] + history[-6:]
     
     try:
         reply = call_groq(messages, MODEL_CHAT, KEY_PRIMARY)
-        
-        # حفظ الرد في التاريخ (ما عدا الأوامر البرمجية لكي لا تفسد السياق)
-        if "CMD_" not in reply:
+        # لا نحفظ الأوامر البرمجية في التاريخ لكي لا نلوث السياق
+        if reply and not reply.startswith("CMD_"):
             history.append({"role": "assistant", "content": reply})
-            
         return reply
     except:
-        return "بويكتا متعب قليلاً، الخوادم مشغولة."
+        return "آسف، حدث خطأ في الاتصال."
 
 # ====================================================================
 # 📨 أدوات الإرسال
@@ -178,7 +198,7 @@ def send_file_memory(user_id, data, type='image', filename='file.png', mime='ima
     requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", data=payload, files=files)
 
 # ====================================================================
-# 🕹️ التحكم (Controller)
+# 🕹️ التحكم الرئيسي (Controller)
 # ====================================================================
 
 @app.route('/webhook', methods=['GET', 'POST'])
@@ -197,46 +217,48 @@ def webhook():
         return 'ok'
 
 def handle_message(user_id, msg):
-    # 1. معالجة الصور (Vision Intelligence)
+    # 1. معالجة الصور (يفهم ويخزن السياق فقط)
     if 'attachments' in msg:
         if msg['attachments'][0]['type'] == 'image':
             url = msg['attachments'][0]['payload']['url']
             
+            # إشعار
             send_msg(user_id, "جاري تحليل الصورة... 👁️")
-            analysis = analyze_image(url)
+            
+            # تحليل ذكي
+            analysis = analyze_image_content(url)
             
             if analysis:
-                user_db[user_id]['last_image_analysis'] = analysis
-                user_db[user_id]['last_image_url'] = url
+                user_db[user_id]['last_image_context'] = analysis
                 
-                # الرد الذكي بناءً على نوع الصورة
+                # رد مبدئي ذكي بناء على النوع
                 if "MATH" in analysis or "Physics" in analysis:
-                    send_msg(user_id, "أرى تمريناً رياضياً/علمياً. 🧮\nهل تريدني أن أحله لك؟")
+                    send_msg(user_id, "وصلتني الصورة، يبدو أنها تمرين. هل تريد الحّل؟ 🧮")
                 elif "RELIGIOUS" in analysis:
-                    send_msg(user_id, "صورة دينية/نص قرآني. 🤲\nهل تريد تفسيراً أو قراءة؟")
+                    send_msg(user_id, "صورة نصية/دينية. هل تريد استخراج النص أو الشرح؟ 📖")
                 else:
-                    send_msg(user_id, "وصلت الصورة. ماذا تريد أن أفعل بها؟ (حل، وصف، ترجمة...)")
-            else:
-                send_msg(user_id, "فشل تحليل الصورة.")
+                    send_msg(user_id, "رأيت الصورة. ماذا تريد أن أفعل بها؟ (وصف، ترجمة، استخراج نص...)")
             return
 
-    # 2. معالجة النصوص والأوامر الصوتية
+    # 2. معالجة النصوص (التفاعل)
     text = msg.get('text', '')
     if not text: return
 
-    # إحضار سياق الصورة إن وجد
-    img_context = user_db[user_id]['last_image_analysis']
-    
-    # 🧠 إرسال كل شيء للعقل المدبر
-    # (نظهر مؤشر الكتابة لإعطاء شعور بالتفكير)
+    # إظهار "جاري الكتابة..."
     requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", 
                   json={'recipient': {'id': user_id}, 'sender_action': 'typing_on'})
+
+    # استدعاء العقل المدبر
+    img_ctx = user_db[user_id]['last_image_context']
+    ai_response = brain_process(user_id, text, img_ctx)
     
-    ai_response = brain_process(user_id, text, img_context)
-    
-    # --- تنفيذ الأوامر حسب رد الذكاء ---
-    
-    # 🎨 1. أمر رسم صورة
+    if not ai_response:
+        send_msg(user_id, "عذراً، حدث خطأ.")
+        return
+
+    # --- تنفيذ الأوامر (Command Execution) ---
+
+    # 🎨 1. طلب رسم
     if ai_response.startswith("CMD_IMAGE:"):
         prompt = ai_response.replace("CMD_IMAGE:", "").strip()
         send_msg(user_id, "جاري الرسم... 🖌️")
@@ -244,10 +266,9 @@ def handle_message(user_id, msg):
             seed = random.randint(1, 99999)
             url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt)}?width=1024&height=1024&seed={seed}&model=flux"
             send_image_url(user_id, url)
-        except:
-            send_msg(user_id, "حدث خطأ أثناء الرسم.")
+        except: send_msg(user_id, "فشل الرسم.")
 
-    # 🗣️ 2. أمر صوتي
+    # 🗣️ 2. طلب صوت
     elif ai_response.startswith("CMD_AUDIO:"):
         tts_text = ai_response.replace("CMD_AUDIO:", "").strip()
         send_msg(user_id, "جاري التسجيل... 🎙️")
@@ -259,24 +280,22 @@ def handle_message(user_id, msg):
                               data={'recipient': json.dumps({'id': user_id}), 'message': json.dumps({'attachment': {'type': 'audio', 'payload': {}}})}, 
                               files={'filedata': (fname, f, 'audio/mpeg')})
             os.remove(fname)
-        except:
-            send_msg(user_id, "فشل إنشاء الصوت.")
+        except: send_msg(user_id, "فشل الصوت.")
 
-    # 🧮 3. أمر حل (معادلات وصور)
-    elif ai_response.startswith("CMD_SOLVE:"):
-        solution = ai_response.replace("CMD_SOLVE:", "").strip()
-        send_msg(user_id, "إليك الحل المفصل 👇")
-        
-        # تحويل الحل لصورة إذا كان معقداً
-        img_data = render_solution_to_image(solution)
-        if img_data:
-            send_file_memory(user_id, img_data, 'image', 'solution.png')
-        else:
-            send_msg(user_id, solution)
-
-    # 💬 4. دردشة عادية
+    # 💬 3. رد نصي (أو حل تمرين)
     else:
-        send_msg(user_id, ai_response)
+        # هنا يكمن الذكاء: فحص النص بحثاً عن رموز الرياضيات
+        if contains_math(ai_response):
+            # وجدنا رياضيات! نحول الرد كاملاً لصورة
+            send_msg(user_id, "إليك الحل 📝 (في صورة لضمان وضوح الرموز):")
+            img_data = render_text_to_image(ai_response)
+            if img_data:
+                send_file_memory(user_id, img_data, 'image', 'solution.png')
+            else:
+                send_msg(user_id, ai_response) # فشل التحويل، نرسل نصاً
+        else:
+            # نص عادي (سوالف، دين، شرح أدبي)
+            send_msg(user_id, ai_response)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 25151))
