@@ -13,7 +13,7 @@ import edge_tts
 # ====================================================================
 
 VERIFY_TOKEN = 'boykta2025'
-PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZCOj8ZBQdn1kZBWkwIjJpYxodGAGHFGhos8ijFduQZAblZAMGNkGQZAQ5efK1bNsARqMHqWBlOvPmZC9pqsINZBRTP58jyclmqaaY3DuHxicesKMBChiDHYfXUNaF80iySjVxtkFntTUbGZANBC6eVGc2yeqeZAKlQwf2Dyj1ydSeM81EWlLcVfDGRvPD'
+PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9'
 
 # دالة سحرية لإصلاح المفاتيح المعكوسة
 def get_real_key(reversed_key):
