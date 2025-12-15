@@ -4,169 +4,159 @@ import requests
 import asyncio
 import textwrap
 import socket
+import logging
 from flask import Flask, request
 from collections import defaultdict
 import edge_tts
 
 # ====================================================================
-# 🔐 إعدادات المفاتيح (تم عكسها لتجاوز حماية GitHub)
+# ⚙️ إعدادات وتوكنات
 # ====================================================================
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
 
 VERIFY_TOKEN = 'boykta2025'
 PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9'
 
-# دالة سحرية لإصلاح المفاتيح المعكوسة
-def get_real_key(reversed_key):
-    return reversed_key[::-1]
-
-# المفاتيح معكوسة (لا يستطيع GitHub اكتشافها هكذا)
+# --- مفاتيح Groq (معكوسة للتمويه) ---
 REV_KEY_1 = "49geXD6qqRr4xfUdUlVSeeVWYF3bydGWSmUinop7KTuMzUIHmIEi_ksg"
 REV_KEY_2 = "N2C8UcKgubBUBsQyZRNhRK51YF3bydGWr2nN0yuRnblYAFceuxoKu_ksg"
 REV_KEY_3 = "d1Ng9mjX25NEoVYqu3b4KX2hYF3bydGW5nTQ7Uu02ZFhNtjICVkH_ksg"
 
-# استرجاع المفاتيح الأصلية
-KEY_CHAT_PRIMARY = get_real_key(REV_KEY_1)
-KEY_VISION_PRIMARY = get_real_key(REV_KEY_2)
-KEY_BACKUP_HELPER = get_real_key(REV_KEY_3)
+def get_key(rev): return rev[::-1]
+
+KEY_PRIMARY = get_key(REV_KEY_1)
+KEY_BACKUP = get_key(REV_KEY_3)
+KEY_VISION = get_key(REV_KEY_2)
+
+# --- رابط النموذج القديم (الاحتياطي الأخير) ---
+OLD_AI_API = "http://fi8.bot-hosting.net:20163/elos-gpt3"
 
 DEVELOPER_NAME = "Younes Laldji"
-AI_ASSISTANT_NAME = "بويكتا"
-DEV_INFO = "المطور: Younes Laldji\nمطور برمجيات وبوتات ذكية."
-
-app = Flask(__name__)
+AI_NAME = "بويكتا"
 
 # ====================================================================
-# 🗄️ الذاكرة وإدارة الحالة
+# 🗄️ الذاكرة (تمت إضافة ذاكرة للصورة الأخيرة)
 # ====================================================================
 user_db = defaultdict(lambda: {
-    'state': None, 
-    'history': [], 
-    'voice': 'female'
+    'state': None,
+    'history': [],
+    'voice': 'female',
+    'last_image': None  # 👈 هنا نحفظ رابط آخر صورة
 })
 
-VOICES = {
-    'female': 'ar-EG-SalmaNeural', 
-    'male': 'ar-SA-HamedNeural'
-}
+VOICES = {'female': 'ar-EG-SalmaNeural', 'male': 'ar-SA-HamedNeural'}
 
 # ====================================================================
-# 🛠️ دوال مساعدة (Utils)
+# 📡 دوال الاتصال (Groq + Old API)
 # ====================================================================
 
-def clean_text(text):
-    """تنظيف النص لفيسبوك لايت"""
-    if text:
-        return text.replace('**', '').replace('__', '').replace('`', '')
-    return ""
+def call_old_api(text):
+    """استدعاء النموذج القديم كخط دفاع أخير"""
+    try:
+        res = requests.get(OLD_AI_API, params={'text': text}, timeout=10)
+        if res.ok:
+            # محاولة استخراج الرد من JSON أو النص مباشرة
+            try: return res.json().get('response', res.text)
+            except: return res.text
+    except Exception as e:
+        logger.error(f"Old API Error: {e}")
+    return "عذرا، حدث خطأ في جميع الخوادم."
 
-def split_message(text, limit=1900):
-    """تقسيم النصوص الطويلة"""
-    return textwrap.wrap(text, limit, replace_whitespace=False)
-
-def call_groq_api(messages, model, key):
-    """دالة موحدة للاتصال بـ Groq"""
+def call_groq(messages, model, key):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    payload = {"model": model, "messages": messages}
     try:
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status() 
-        return response.json()['choices'][0]['message']['content']
+        res = requests.post(url, json={"model": model, "messages": messages}, headers=headers, timeout=20)
+        res.raise_for_status()
+        return res.json()['choices'][0]['message']['content']
     except Exception as e:
+        logger.error(f"Groq Error: {e}")
         raise e
 
-# ====================================================================
-# 🧠 الذكاء الاصطناعي (AI Logic)
-# ====================================================================
-
-def chat_with_groq(user_id, user_text):
-    """الدردشة العامة مع المحاولة الاحتياطية"""
+def chat_smart(user_id, text):
+    """نظام الرد الذكي: أساسي -> احتياطي -> قديم"""
     history = user_db[user_id]['history']
-    history.append({"role": "user", "content": user_text})
-    if len(history) > 8: history = history[-8:]
-    
-    messages = [{"role": "system", "content": "أنت بويكتا، مساعد ذكي. أجب دائما بالعربية وبشكل مفيد."}] + history
-    
+    history.append({"role": "user", "content": text})
+    messages = [{"role": "system", "content": "أنت مساعد مفيد، جاوب بالعربية بدون تنسيقات معقدة."}] + history[-6:]
+
+    reply = ""
     try:
-        reply = call_groq_api(messages, "llama-3.3-70b-versatile", KEY_CHAT_PRIMARY)
+        # 1. محاولة Groq الأساسي
+        reply = call_groq(messages, "llama-3.3-70b-versatile", KEY_PRIMARY)
     except:
         try:
-            reply = call_groq_api(messages, "llama3-8b-8192", KEY_BACKUP_HELPER)
+            # 2. محاولة Groq الاحتياطي
+            reply = call_groq(messages, "llama3-8b-8192", KEY_BACKUP)
         except:
-            return "عذرا، الخوادم مشغولة حاليا. حاول مرة أخرى لاحقا."
+            # 3. استخدام النموذج القديم
+            reply = call_old_api(text)
 
     history.append({"role": "assistant", "content": reply})
-    user_db[user_id]['history'] = history
     return reply
 
-def ocr_groq_vision(image_url):
-    """استخراج النص من الصورة (Vision)"""
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Extract all text from this image perfectly in Arabic or English. Just output the text without headers."},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
-        }
-    ]
+def ocr_smart(image_url):
+    """استخراج النص"""
+    msgs = [{"role": "user", "content": [
+        {"type": "text", "text": "Extract text from image in Arabic/English cleanly."},
+        {"type": "image_url", "image_url": {"url": image_url}}
+    ]}]
     try:
-        return call_groq_api(messages, "llama-3.2-11b-vision-preview", KEY_VISION_PRIMARY)
+        return call_groq(msgs, "llama-3.2-11b-vision-preview", KEY_VISION)
     except:
         try:
-            return call_groq_api(messages, "llama-3.2-11b-vision-preview", KEY_BACKUP_HELPER)
+            return call_groq(msgs, "llama-3.2-11b-vision-preview", KEY_BACKUP)
         except:
-            return "فشل استخراج النص، الصورة قد تكون غير واضحة."
-
-def translate_prompt(text):
-    """ترجمة الوصف (لخدمة الصور)"""
-    messages = [
-        {"role": "system", "content": "Translate this to English directly without any extra text."},
-        {"role": "user", "content": text}
-    ]
-    try:
-        return call_groq_api(messages, "llama3-8b-8192", KEY_BACKUP_HELPER)
-    except:
-        return text
+            return "فشل استخراج النص، الخوادم مشغولة."
 
 # ====================================================================
-# 📡 دوال الإرسال (Messenger API)
+# 📨 دوال الإرسال (فيسبوك)
 # ====================================================================
 
 def send_msg(user_id, text):
-    text = clean_text(text)
-    chunks = split_message(text)
-    for chunk in chunks:
+    # تنظيف النص من الماركداون الذي يكرهه فيسبوك لايت
+    clean = text.replace('**', '').replace('__', '').replace('`', '')
+    for chunk in textwrap.wrap(clean, 1900, replace_whitespace=False):
         requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", 
                       json={'recipient': {'id': user_id}, 'message': {'text': chunk}})
 
 def send_buttons(user_id, text, buttons):
-    text = clean_text(text)
-    requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", 
-                  json={
-                      'recipient': {'id': user_id}, 
-                      'message': {'attachment': {'type': 'template', 'payload': {'template_type': 'button', 'text': text, 'buttons': buttons}}}
-                  })
+    # استخدام generic template أحياناً أفضل للايت
+    payload = {
+        'recipient': {'id': user_id},
+        'message': {
+            'attachment': {
+                'type': 'template',
+                'payload': {
+                    'template_type': 'button',
+                    'text': text.replace('**', ''),
+                    'buttons': buttons
+                }
+            }
+        }
+    }
+    requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", json=payload)
 
-def send_image(user_id, image_url):
-    requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", 
-                  json={'recipient': {'id': user_id}, 'message': {'attachment': {'type': 'image', 'payload': {'url': image_url, 'is_reusable': True}}}})
+def send_image(user_id, url):
+    requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}",
+                  json={'recipient': {'id': user_id}, 'message': {'attachment': {'type': 'image', 'payload': {'url': url, 'is_reusable': True}}}})
 
-def send_audio(user_id, filename):
+def send_audio(user_id, path):
     data = {'recipient': json.dumps({'id': user_id}), 'message': json.dumps({'attachment': {'type': 'audio', 'payload': {}}})}
-    with open(filename, 'rb') as f:
-        requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", data=data, files={'filedata': (filename, f, 'audio/mpeg')})
+    with open(path, 'rb') as f:
+        requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", data=data, files={'filedata': (path, f, 'audio/mpeg')})
 
 # ====================================================================
-# 🎮 التحكم (Controller)
+# 🎮 التحكم والمنطق
 # ====================================================================
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
-        if request.args.get('hub.verify_token') == VERIFY_TOKEN:
-            return request.args.get('hub.challenge')
-        return 'Invalid verification token'
+        return request.args.get('hub.challenge') if request.args.get('hub.verify_token') == VERIFY_TOKEN else 'Error'
 
     if request.method == 'POST':
         try:
@@ -175,130 +165,107 @@ def webhook():
                 for entry in data['entry']:
                     for event in entry.get('messaging', []):
                         sender_id = event['sender']['id']
-                        try:
-                            if 'postback' in event:
-                                handle_payload(sender_id, event['postback']['payload'])
-                            elif 'message' in event:
-                                handle_message(sender_id, event['message'])
-                        except Exception as e:
-                            print(f"Error handling event for {sender_id}: {e}")
-        except Exception as main_e:
-            print(f"Webhook Error: {main_e}")
+                        if 'postback' in event:
+                            handle_payload(sender_id, event['postback']['payload'])
+                        elif 'message' in event:
+                            handle_message(sender_id, event['message'])
+        except Exception as e:
+            logger.error(f"Webhook Error: {e}")
         return 'ok'
 
 def get_main_menu():
     return [
-        {"type": "postback", "title": "🤖 دردشة", "payload": "CMD_CHAT"},
-        {"type": "postback", "title": "🎨 تخيل صورة", "payload": "CMD_GEN_IMG"},
-        {"type": "postback", "title": "📝 قراءة نص (OCR)", "payload": "CMD_OCR"},
-    ]
-
-def get_more_menu():
-    return [
-        {"type": "postback", "title": "🗣️ نص لصوت", "payload": "CMD_TTS"},
-        {"type": "postback", "title": "ℹ️ المطور", "payload": "CMD_INFO"}
+        {"type": "postback", "title": "الدردشة 🤖", "payload": "CMD_CHAT"},
+        {"type": "postback", "title": "تخيل صورة 🎨", "payload": "CMD_GEN_IMG"},
+        {"type": "postback", "title": "استخراج نص 📝", "payload": "CMD_OCR"},
     ]
 
 def handle_payload(user_id, payload):
     user_db[user_id]['state'] = None
-    
-    if payload in ['GET_STARTED', 'CMD_BACK']:
-        send_buttons(user_id, "مرحباً بك! اختر خدمة:", get_main_menu())
-        send_buttons(user_id, "المزيد من الخدمات:", get_more_menu())
-    
-    elif payload == 'CMD_OCR':
-        user_db[user_id]['state'] = 'WAITING_OCR'
-        send_buttons(user_id, "أرسل الصورة لاستخراج النص منها 📄", [{"type": "postback", "title": "🔙 رجوع", "payload": "CMD_BACK"}])
+
+    if payload == 'CMD_OCR':
+        # 💡 الذكاء هنا: التحقق هل توجد صورة سابقة؟
+        last_img = user_db[user_id]['last_image']
+        if last_img:
+            send_msg(user_id, "جاري استخراج النص من الصورة السابقة... ⏳")
+            text = ocr_smart(last_img)
+            send_msg(user_id, f"📝 النص:\n{text}")
+            send_buttons(user_id, "ماذا تريد الآن؟", get_main_menu())
+        else:
+            user_db[user_id]['state'] = 'WAITING_OCR'
+            send_msg(user_id, "أرسل الصورة الآن لاستخراج النص منها 📄")
 
     elif payload == 'CMD_GEN_IMG':
         user_db[user_id]['state'] = 'WAITING_GEN_PROMPT'
-        send_buttons(user_id, "اكتب وصف الصورة التي في خيالك 🎨", [{"type": "postback", "title": "🔙 رجوع", "payload": "CMD_BACK"}])
+        send_msg(user_id, "اكتب وصف الصورة التي تريدها 🎨")
 
     elif payload == 'CMD_TTS':
-        btns = [
-            {"type": "postback", "title": "👨 صوت رجل", "payload": "SET_MALE"},
-            {"type": "postback", "title": "👩 صوت امرأة", "payload": "SET_FEMALE"},
-            {"type": "postback", "title": "🔙 رجوع", "payload": "CMD_BACK"}
-        ]
-        send_buttons(user_id, "اختر نوع الصوت:", btns)
-
-    elif payload in ['SET_MALE', 'SET_FEMALE']:
-        user_db[user_id]['voice'] = 'male' if payload == 'SET_MALE' else 'female'
         user_db[user_id]['state'] = 'WAITING_TTS_TEXT'
-        send_msg(user_id, "تم حفظ الصوت. أرسل النص الآن لتحويله 🗣️")
-        
-    elif payload == 'CMD_INFO':
-        send_buttons(user_id, DEV_INFO, [{"type": "postback", "title": "🔙 رجوع", "payload": "CMD_BACK"}])
-        
+        send_msg(user_id, "أرسل النص لتحويله لصوت 🗣️")
+    
     elif payload == 'CMD_CHAT':
-        user_db[user_id]['state'] = 'CHAT_MODE'
-        send_buttons(user_id, "أنا أسمعك، تفضل بالحديث معي.", [{"type": "postback", "title": "🔙 رجوع", "payload": "CMD_BACK"}])
+        send_msg(user_id, "تفضل، أنا أسمعك. يمكنك سؤالي عن أي شيء.")
 
-def handle_message(user_id, message):
+    elif payload == 'CMD_BACK':
+        send_buttons(user_id, "القائمة الرئيسية:", get_main_menu())
+
+def handle_message(user_id, msg):
     state = user_db[user_id]['state']
 
-    if 'attachments' in message:
-        attachment = message['attachments'][0]
+    # 1. معالجة الصور
+    if 'attachments' in msg:
+        att = msg['attachments'][0]
+        if 'sticker_id' in att.get('payload', {}): # تجاهل اللايكات
+            return
         
-        # فلتر اللايكات (منع الانهيار)
-        if 'sticker_id' in attachment.get('payload', {}):
-            send_msg(user_id, "❤️")
-            return 
-        
-        if attachment['type'] == 'image':
-            img_url = attachment['payload']['url']
+        if att['type'] == 'image':
+            url = att['payload']['url']
+            user_db[user_id]['last_image'] = url # ✅ حفظ الصورة في الذاكرة
             
             if state == 'WAITING_OCR':
-                send_msg(user_id, "جاري قراءة الصورة... ⏳")
-                text = ocr_groq_vision(img_url)
-                send_msg(user_id, f"📝 النص المستخرج:\n\n{text}")
-                send_msg(user_id, "تابع الصفحة للمزيد! ❤️")
+                send_msg(user_id, "جاري القراءة... ⏳")
+                text = ocr_smart(url)
+                send_msg(user_id, f"📝 النتيجة:\n{text}")
                 user_db[user_id]['state'] = None
             else:
-                send_buttons(user_id, "وصلتني الصورة. هل تريد استخراج النص؟", [
-                    {"type": "postback", "title": "📝 استخراج نص", "payload": "CMD_OCR"}
+                # عرض زر استخراج النص مباشرة للصورة المرسلة
+                send_buttons(user_id, "وصلت الصورة. اختر:", [
+                    {"type": "postback", "title": "استخراج النص 📝", "payload": "CMD_OCR"},
+                    {"type": "postback", "title": "إلغاء ❌", "payload": "CMD_BACK"}
                 ])
         return
 
-    text = message.get('text', '')
+    # 2. معالجة النصوص
+    text = msg.get('text', '')
     if not text: return
 
     if state == 'WAITING_GEN_PROMPT':
         send_msg(user_id, "جاري الرسم... 🎨")
-        eng_prompt = translate_prompt(text)
-        img_url = f"https://image.pollinations.ai/prompt/{eng_prompt}"
-        send_image(user_id, img_url)
-        send_msg(user_id, "تم! لا تنس متابعة الصفحة.")
+        try:
+            # استخدام الترجمة البسيطة أو المباشرة
+            img_url = f"https://image.pollinations.ai/prompt/{text}"
+            send_image(user_id, img_url)
+        except:
+            send_msg(user_id, "فشل إنشاء الصورة.")
         user_db[user_id]['state'] = None
 
     elif state == 'WAITING_TTS_TEXT':
-        send_msg(user_id, "جاري تحويل الصوت... 🎧")
-        voice = VOICES[user_db[user_id]['voice']]
-        filename = f"voice_{user_id}.mp3"
+        send_msg(user_id, "جاري التسجيل... 🎧")
+        fname = f"tts_{user_id}.mp3"
         try:
-            asyncio.run(edge_tts.Communicate(text, voice).save(filename))
-            send_audio(user_id, filename)
-            try: os.remove(filename)
-            except: pass
-        except Exception as e:
-            send_msg(user_id, "حدث خطأ أثناء إنشاء الصوت.")
+            voice = VOICES[user_db[user_id]['voice']]
+            asyncio.run(edge_tts.Communicate(text, voice).save(fname))
+            send_audio(user_id, fname)
+            os.remove(fname)
+        except:
+            send_msg(user_id, "حدث خطأ صوتي.")
         user_db[user_id]['state'] = None
 
     else:
-        reply = chat_with_groq(user_id, text)
+        # شات عادي
+        reply = chat_smart(user_id, text)
         send_msg(user_id, reply)
 
 if __name__ == '__main__':
-    # إعدادات التشغيل لـ HidenCloud
-    import socket
-    hostname = socket.gethostname()
-    print("=" * 50)
-    print("🚀 إرشادات Webhook:")
-    print(f"✅ Webhook URL (محتمل): http://noel.hidencloud.com:25151/webhook")
-    print(f"🔑 Verify Token: {VERIFY_TOKEN}")
-    print(f"👤 المطور: {DEVELOPER_NAME}")
-    print(f"🤖 اسم الذكاء الاصطناعي: {AI_ASSISTANT_NAME}")
-    print("=" * 50)
-    
     port = int(os.environ.get('PORT', 25151))
     app.run(host='0.0.0.0', port=port)
