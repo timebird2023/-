@@ -6,6 +6,7 @@ import textwrap
 import logging
 import random
 import urllib.parse
+import io
 from flask import Flask, request
 from collections import defaultdict
 import edge_tts
@@ -20,15 +21,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 VERIFY_TOKEN = 'boykta2025'
+
+# ✅ التوكن الجديد
 PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9'
 
-# 🛡️ المفاتيح الآمنة (Llama 4 Vision & Llama 3.1 Chat)
+# 🛡️ المفاتيح الآمنة
 PARTIAL_KEYS = [
     "mwhCmwL1LNpcQvdMTHGvWGdyb3FYfU2hS7oMXV65vqEfROmTVr0q",
     "uKouecFAYlbnRuy0Nn2rWGdyb3FY15KRhNRZyQsBUBBugKcU8C2N",
     "jkVCijtNhFZ20uU7QTn5WGdyb3FYh2XK4b3uqYVoEN52Xjm9gN1d"
 ]
-
 def get_key(index): return "gsk_" + PARTIAL_KEYS[index]
 
 KEY_PRIMARY = get_key(0)
@@ -36,19 +38,18 @@ KEY_BACKUP  = get_key(1)
 KEY_VISION  = get_key(2)
 
 MODEL_CHAT   = "llama-3.1-8b-instant" 
-MODEL_VISION = "meta-llama/llama-4-scout-17b-16e-instruct" # الموديل الجديد القوي
-
-OLD_AI_API = "http://fi8.bot-hosting.net:20163/elos-gpt3"
+MODEL_VISION = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 # ====================================================================
-# 🗄️ الذاكرة (محدثة لحفظ النص المستخرج)
+# 🗄️ الذاكرة
 # ====================================================================
 user_db = defaultdict(lambda: {
     'state': None,      
     'history': [],
-    'voice': 'female',      # الافتراضي
-    'last_image': None,     # آخر صورة مرسلة
-    'extracted_text': None  # 🆕 النص المستخرج (للمتابعة)
+    'voice': 'female',
+    'last_image': None,
+    'extracted_text': None,
+    'trans_target': None # لتخزين اللغة التي يريدها المستخدم
 })
 
 VOICES = {
@@ -60,21 +61,14 @@ VOICES = {
 # 📡 دوال الذكاء الاصطناعي
 # ====================================================================
 
-def call_old_api(text):
-    try:
-        res = requests.get(OLD_AI_API, params={'text': text}, timeout=10)
-        return res.json().get('response', res.text) if res.ok else "عذرا، الخادم مشغول."
-    except:
-        return "عذرا، لا يوجد رد."
-
 def call_groq(messages, model, key):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     try:
         res = requests.post(url, json={"model": model, "messages": messages}, headers=headers, timeout=30)
         
+        # محاولة احتياطية لموديل الصور
         if res.status_code in [400, 404] and "scout" in model:
-             # في حال فشل Scout، نستخدم احتياطي
              return call_groq(messages, "llama-3.2-11b-vision-preview", key)
 
         res.raise_for_status()
@@ -84,7 +78,6 @@ def call_groq(messages, model, key):
         raise e
 
 def chat_smart(user_id, text, system_instruction=None):
-    """دالة الشات العامة"""
     history = user_db[user_id]['history']
     history.append({"role": "user", "content": text})
     
@@ -95,16 +88,23 @@ def chat_smart(user_id, text, system_instruction=None):
     try:
         reply = call_groq(messages, MODEL_CHAT, KEY_PRIMARY)
     except:
-        try:
-            reply = call_groq(messages, MODEL_CHAT, KEY_BACKUP)
-        except:
-            reply = call_old_api(text)
+        reply = "عذراً، الخوادم مشغولة حالياً."
 
     history.append({"role": "assistant", "content": reply})
     return reply
 
 def ocr_smart(image_url):
-    prompt = "Extract ALL text from this image exactly as is. Output ONLY the text content."
+    # 🆕 Prompt شامل لكل شيء
+    prompt = """
+    TASK: Extract EVERYTHING visible in this image exactly as it appears.
+    
+    CRITICAL RULES:
+    1. Extract ALL languages found (Arabic, English, French, Mixed...).
+    2. Extract ALL mathematical symbols, fractions, and equations exactly as shown.
+    3. Do NOT skip anything. If it's on the screen, write it down.
+    4. Output ONLY the extracted content. No conversational filler like "Here is the text".
+    5. Maintain the original layout (lines/paragraphs) as much as possible.
+    """
     msgs = [{"role": "user", "content": [
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": image_url}}
@@ -112,10 +112,7 @@ def ocr_smart(image_url):
     try:
         return call_groq(msgs, MODEL_VISION, KEY_VISION)
     except:
-        try:
-            return call_groq(msgs, MODEL_VISION, KEY_PRIMARY)
-        except:
-            return "فشل استخراج النص، الخادم مشغول."
+        return "فشل استخراج النص، الصورة غير واضحة أو الخادم مشغول."
 
 # ====================================================================
 # 📨 دوال الإرسال
@@ -139,14 +136,14 @@ def send_quick_replies(user_id, text, replies):
     requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", json=payload)
 
 def send_image(user_id, url):
-    # استخدام رابط مباشر للصورة
+    encoded_url = urllib.parse.quote(url, safe=':/?&=')
     requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}",
-                  json={'recipient': {'id': user_id}, 'message': {'attachment': {'type': 'image', 'payload': {'url': url, 'is_reusable': True}}}})
+                  json={'recipient': {'id': user_id}, 'message': {'attachment': {'type': 'image', 'payload': {'url': encoded_url, 'is_reusable': True}}}})
 
-def send_audio(user_id, path):
+def send_audio_from_memory(user_id, audio_data):
     data = {'recipient': json.dumps({'id': user_id}), 'message': json.dumps({'attachment': {'type': 'audio', 'payload': {}}})}
-    with open(path, 'rb') as f:
-        requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", data=data, files={'filedata': (path, f, 'audio/mpeg')})
+    files = {'filedata': ('voice.mp3', audio_data, 'audio/mpeg')}
+    requests.post(f"https://graph.facebook.com/v19.0/me/messages?access_token={PAGE_ACCESS_TOKEN}", data=data, files=files)
 
 # ====================================================================
 # 🎮 القوائم والتحكم
@@ -161,11 +158,9 @@ def get_main_menu_qr():
     ]
 
 def get_ocr_options():
-    # خيارات ما بعد استخراج النص
     return [
         {"content_type": "text", "title": "🧮 حل / شرح", "payload": "OCR_SOLVE"},
-        {"content_type": "text", "title": "🌍 ترجمة", "payload": "OCR_TRANS"},
-        {"content_type": "text", "title": "✏️ تعديل الصورة", "payload": "OCR_EDIT_IMG"},
+        {"content_type": "text", "title": "🌍 ترجمة", "payload": "OCR_TRANS_CUSTOM"},
         {"content_type": "text", "title": "🔙 خروج", "payload": "CMD_BACK"}
     ]
 
@@ -188,7 +183,6 @@ def webhook():
                 for entry in data['entry']:
                     for event in entry.get('messaging', []):
                         sender_id = event['sender']['id']
-                        
                         if event.get('message') and event['message'].get('quick_reply'):
                             payload = event['message']['quick_reply']['payload']
                             handle_payload(sender_id, payload)
@@ -203,79 +197,62 @@ def webhook():
 def handle_payload(user_id, payload):
     if payload == 'CMD_BACK':
         user_db[user_id]['state'] = None
-        user_db[user_id]['extracted_text'] = None
         send_quick_replies(user_id, "عدنا للدردشة العامة 🤖", get_main_menu_qr())
         return
 
     # === خدمة OCR ===
     if payload == 'CMD_OCR':
         if user_db[user_id]['last_image']:
-            # إذا في صورة سابقة، نستخرج منها فوراً
             process_ocr(user_id, user_db[user_id]['last_image'])
         else:
             user_db[user_id]['state'] = 'WAITING_OCR'
-            send_quick_replies(user_id, "أرسل الصورة الآن لاستخراج النص منها 📸", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
+            send_quick_replies(user_id, "أرسل الصورة الآن (بها أي لغة أو رموز) 📸", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
 
-    # === خيارات ما بعد الـ OCR ===
     elif payload == 'OCR_SOLVE':
         text = user_db[user_id]['extracted_text']
         if text:
-            send_msg(user_id, "جاري التفكير في الحل/الشرح... 🧠")
-            reply = chat_smart(user_id, f"قم بحل أو شرح هذا النص بالتفصيل: {text}")
-            send_quick_replies(user_id, reply, get_main_menu_qr())
-        else:
-            send_msg(user_id, "لا يوجد نص محفوظ.")
-
-    elif payload == 'OCR_TRANS':
-        text = user_db[user_id]['extracted_text']
-        if text:
-            send_msg(user_id, "جاري الترجمة... 🌍")
-            reply = chat_smart(user_id, f"ترجم هذا النص للعربية (أو للإنجليزية إذا كان عربياً): {text}")
+            send_msg(user_id, "جاري التفكير... 🧠")
+            reply = chat_smart(user_id, f"قم بحل أو شرح هذا النص بدقة:\n{text}")
             send_quick_replies(user_id, reply, get_main_menu_qr())
 
-    elif payload == 'OCR_EDIT_IMG':
-        # الرسالة التوضيحية التي طلبتها
-        send_quick_replies(user_id, 
-                           "🛑 عذراً، أنا بوت ذكي للنصوص ولا يمكنني تعديل الصور (مثل تغيير الألوان أو حذف أشياء). ولكن يمكنني إنشاء صورة جديدة لك من الصفر بخدمة 'تخيل صورة'!", 
-                           get_main_menu_qr())
+    elif payload == 'OCR_TRANS_CUSTOM':
+        # 🆕 هنا نسأل المستخدم عن اللغة
+        user_db[user_id]['state'] = 'WAITING_TRANS_LANG'
+        send_quick_replies(user_id, "اكتب اسم اللغة التي تريد الترجمة إليها (مثلاً: فرنسية، تركية، كورية...) ✍️", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
 
     # === خدمة الصور ===
     elif payload == 'CMD_GEN_IMG':
         user_db[user_id]['state'] = 'WAITING_GEN_PROMPT'
-        send_quick_replies(user_id, "اكتب وصف الصورة التي تريد رسمها 🎨", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
+        send_quick_replies(user_id, "اكتب وصف الصورة 🎨", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
 
-    # === خدمة الصوت (إصلاح اختيار الصوت) ===
+    # === خدمة الصوت ===
     elif payload == 'CMD_TTS':
-        send_quick_replies(user_id, "اختر نبرة الصوت المفضلة: 🗣️", get_voice_options())
+        send_quick_replies(user_id, "اختر الصوت: 🗣️", get_voice_options())
 
     elif payload in ['SET_VOICE_MALE', 'SET_VOICE_FEMALE']:
         voice_type = 'male' if payload == 'SET_VOICE_MALE' else 'female'
         user_db[user_id]['voice'] = voice_type
         user_db[user_id]['state'] = 'WAITING_TTS_TEXT'
         voice_name = "حامد" if voice_type == 'male' else "سلمى"
-        send_quick_replies(user_id, f"تم اختيار صوت ({voice_name}). أرسل النص الآن 📝", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
+        send_quick_replies(user_id, f"تم اختيار ({voice_name}). أرسل النص الآن 📝", [{"content_type": "text", "title": "🔙 إلغاء", "payload": "CMD_BACK"}])
 
-    # === معلومات ===
     elif payload == 'CMD_INFO':
         send_quick_replies(user_id, "المطور: Younes Laldji", get_main_menu_qr())
 
 def process_ocr(user_id, image_url):
-    """دالة معالجة الاستخراج والخيارات اللاحقة"""
-    send_msg(user_id, "جاري تحليل الصورة... ⏳")
+    send_msg(user_id, "جاري تحليل كل حرف ورمز في الصورة... ⏳")
     text = ocr_smart(image_url)
     
-    # حفظ النص للعمليات اللاحقة
     user_db[user_id]['extracted_text'] = text
-    user_db[user_id]['state'] = None # الخروج من وضع الانتظار
+    user_db[user_id]['state'] = None
     
     send_msg(user_id, f"📝 النص المستخرج:\n\n{text}")
-    # عرض خيارات: ماذا نفعل بالنص؟
     send_quick_replies(user_id, "ماذا تريد أن أفعل بهذا النص؟ 👇", get_ocr_options())
 
 def handle_message(user_id, msg):
     state = user_db[user_id]['state']
 
-    # 1. صور
+    # 1. معالجة الصور
     if 'attachments' in msg:
         att = msg['attachments'][0]
         if 'sticker_id' in att.get('payload', {}): return
@@ -286,19 +263,31 @@ def handle_message(user_id, msg):
             if state == 'WAITING_OCR':
                 process_ocr(user_id, url)
             else:
-                send_quick_replies(user_id, "وصلت الصورة. هل تريد استخراج النص؟", 
-                                   [{"content_type":"text", "title":"📝 نعم استخرج", "payload":"CMD_OCR"}] + get_main_menu_qr())
+                send_quick_replies(user_id, "وصلت الصورة. هل أستخرج النص منها؟", 
+                                   [{"content_type":"text", "title":"📝 استخراج شامل", "payload":"CMD_OCR"}] + get_main_menu_qr())
         return
 
-    # 2. نصوص
+    # 2. معالجة النصوص
     text = msg.get('text', '')
     if not text: return
 
-    # --- إنشاء صورة (مع إصلاح الرابط) ---
-    if state == 'WAITING_GEN_PROMPT':
-        send_msg(user_id, "جاري الرسم... (قد يستغرق بضع ثوانٍ) 🎨")
+    # --- الترجمة المخصصة (الجديدة) ---
+    if state == 'WAITING_TRANS_LANG':
+        target_lang = text # المستخدم كتب اللغة بنفسه
+        original_text = user_db[user_id]['extracted_text']
+        
+        send_msg(user_id, f"جاري الترجمة إلى {target_lang}... 🌍")
+        
+        prompt = f"Translate the following text to {target_lang}. Provide ONLY the translation:\n\n{original_text}"
+        reply = chat_smart(user_id, prompt)
+        
+        user_db[user_id]['state'] = None
+        send_quick_replies(user_id, reply, get_main_menu_qr())
+
+    # --- إنشاء صورة (مع طباعة الخطأ) ---
+    elif state == 'WAITING_GEN_PROMPT':
+        send_msg(user_id, "جاري الرسم... 🎨")
         try:
-            # إضافة seed عشوائي لمنع الكاش وضمان وصول الصورة
             seed = random.randint(1, 99999)
             encoded_prompt = urllib.parse.quote(text)
             img_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&noshare=1&seed={seed}"
@@ -307,27 +296,28 @@ def handle_message(user_id, msg):
             user_db[user_id]['state'] = None
             send_quick_replies(user_id, "كيف تبدو؟ 😍", get_main_menu_qr())
         except Exception as e:
-            send_msg(user_id, f"فشل الرسم: {e}")
+            # 🆕 طباعة الخطأ للمستخدم/المطور
+            send_msg(user_id, f"❌ فشل إنشاء الصورة.\nالسبب التقني: {str(e)}")
+            user_db[user_id]['state'] = None
+            send_quick_replies(user_id, "حاول مرة أخرى.", get_main_menu_qr())
 
-    # --- تحويل صوت (مع كشف الأخطاء) ---
+    # --- تحويل صوت ---
     elif state == 'WAITING_TTS_TEXT':
-        send_msg(user_id, "جاري المعالجة الصوتية... 🎧")
+        send_msg(user_id, "جاري المعالجة... 🎧")
         try:
-            fname = f"tts_{user_id}.mp3"
             selected_voice = VOICES[user_db[user_id]['voice']]
+            audio_stream = io.BytesIO()
+            asyncio.run(edge_tts.Communicate(text, selected_voice).save(audio_stream))
+            audio_data = audio_stream.getvalue()
             
-            asyncio.run(edge_tts.Communicate(text, selected_voice).save(fname))
-            
-            # التحقق من حجم الملف
-            if os.path.exists(fname) and os.path.getsize(fname) > 0:
-                send_audio(user_id, fname)
-                os.remove(fname)
+            if len(audio_data) > 0:
+                send_audio_from_memory(user_id, audio_data)
                 user_db[user_id]['state'] = None
                 send_quick_replies(user_id, "استماع ممتع!", get_main_menu_qr())
             else:
-                send_msg(user_id, "خطأ: الملف الصوتي فارغ. حاول نصاً آخر.")
+                send_msg(user_id, "خطأ: الملف فارغ.")
         except Exception as e:
-            send_msg(user_id, f"خطأ تقني في الصوت: {str(e)}")
+            send_msg(user_id, f"خطأ صوتي: {str(e)}")
             user_db[user_id]['state'] = None
 
     # --- شات عام ---
