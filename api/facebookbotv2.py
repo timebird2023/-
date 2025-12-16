@@ -7,7 +7,6 @@ import logging
 import random
 import urllib.parse
 import io
-import re
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -16,14 +15,13 @@ from collections import defaultdict, deque
 import edge_tts
 
 # ====================================================================
-# 1. ⚙️ الإعدادات والمفاتيح (Config)
+# 1. ⚙️ الإعدادات (Config)
 # ====================================================================
 class Config:
     PORT = int(os.environ.get('PORT', 25151))
     VERIFY_TOKEN = 'boykta2025'
     PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9'
 
-    # 🛡️ تقسيم المفاتيح لتجنب الحظر
     _PARTIAL_KEYS = [
         "mwhCmwL1LNpcQvdMTHGvWGdyb3FYfU2hS7oMXV65vqEfROmTVr0q",
         "uKouecFAYlbnRuy0Nn2rWGdyb3FY15KRhNRZyQsBUBBugKcU8C2N",
@@ -31,15 +29,20 @@ class Config:
     ]
     
     MODEL_CHAT = "llama-3.1-8b-instant"
-    MODEL_VISION = "llama-3.2-90b-vision-preview" # الموديل الأقوى للصور
-    MODEL_AUDIO = "whisper-large-v3" # موديل تحويل الصوت لنص
+    # ✅ التعديل: النموذج الصحيح المتاح حالياً
+    MODEL_VISION = "llama-3.2-11b-vision-preview" 
+    MODEL_AUDIO = "whisper-large-v3"
+
+    # ✅ التعديل: صوت رجل (شاكر)
+    # خيارات أخرى للذكر: ar-SA-HamedNeural (سعودي)
+    TTS_VOICE = "ar-EG-ShakirNeural" 
 
     @staticmethod
     def get_key(index=0):
         return "gsk_" + Config._PARTIAL_KEYS[index % len(Config._PARTIAL_KEYS)]
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("BoyktaBot_V7")
+logger = logging.getLogger("BoyktaBot_V8")
 
 # ====================================================================
 # 2. 🧠 عميل الذكاء الاصطناعي (Groq Client)
@@ -49,7 +52,6 @@ class GroqClient:
 
     @staticmethod
     def chat(messages, model=Config.MODEL_CHAT):
-        """إرسال رسائل نصية"""
         for i in range(len(Config._PARTIAL_KEYS)):
             key = Config.get_key(i)
             try:
@@ -61,14 +63,14 @@ class GroqClient:
                 )
                 if resp.status_code == 200:
                     return resp.json()['choices'][0]['message']['content']
+                # طباعة الخطأ في الكونسول للمراقبة
+                logger.error(f"Chat Error {resp.status_code}: {resp.text}")
             except Exception as e:
-                logger.error(f"Chat Error: {e}")
+                logger.error(f"Chat Ex: {e}")
         return None
 
     @staticmethod
     def vision(img_url, prompt="Extract text"):
-        """تحليل الصور مع طباعة الأخطاء"""
-        # تجربة عدة مفاتيح
         for i in range(len(Config._PARTIAL_KEYS)):
             key = Config.get_key(i)
             try:
@@ -90,47 +92,34 @@ class GroqClient:
                 if resp.status_code == 200:
                     return {"status": "success", "text": resp.json()['choices'][0]['message']['content']}
                 else:
-                    # 🚨 هنا نطبع الخطأ لنعرف السبب
-                    error_msg = f"API Error {resp.status_code}: {resp.text}"
-                    logger.error(error_msg)
-                    return {"status": "error", "text": error_msg} # نعيد الخطأ للمستخدم مؤقتاً
+                    return {"status": "error", "text": f"API Error {resp.status_code}: {resp.text}"}
             except Exception as e:
                 return {"status": "error", "text": str(e)}
         return {"status": "error", "text": "All keys failed"}
 
     @staticmethod
     def audio_transcription(audio_url):
-        """تحويل الصوت إلى نص (Whisper)"""
         try:
-            # 1. تحميل الملف الصوتي من فيسبوك
             audio_data = requests.get(audio_url).content
-            
-            # 2. إرساله لـ Groq
             key = Config.get_key(0)
             files = {
                 'file': ('audio.mp3', audio_data, 'audio/mpeg'),
                 'model': (None, Config.MODEL_AUDIO)
             }
-            headers = {"Authorization": f"Bearer {key}"} # لا نضع Content-Type هنا
-            
+            headers = {"Authorization": f"Bearer {key}"}
             resp = requests.post(f"{GroqClient.BASE_URL}/audio/transcriptions", headers=headers, files=files, timeout=60)
-            
             if resp.status_code == 200:
                 return resp.json().get('text', '')
-            else:
-                logger.error(f"Whisper Error: {resp.text}")
-                return None
-        except Exception as e:
-            logger.error(f"Audio Download Error: {e}")
+            return None
+        except:
             return None
 
 # ====================================================================
-# 3. 🛠️ الأدوات المساعدة (Tools)
+# 3. 🛠️ الأدوات (Tools)
 # ====================================================================
 class Tools:
     @staticmethod
     def render_latex(latex):
-        """رسم الرياضيات"""
         try:
             clean = latex.replace('$$', '').strip()
             fig, ax = plt.subplots(figsize=(10, 2))
@@ -146,7 +135,6 @@ class Tools:
 
     @staticmethod
     def generate_image(prompt):
-        """رسم صورة"""
         try:
             safe_prompt = urllib.parse.quote(prompt)
             url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&model=flux&seed={random.randint(1,99999)}"
@@ -155,9 +143,9 @@ class Tools:
 
     @staticmethod
     def text_to_speech(text):
-        """نطق النص"""
         async def _run():
-            comm = edge_tts.Communicate(text, "ar-EG-SalmaNeural")
+            # استخدام صوت الرجل (Shakir)
+            comm = edge_tts.Communicate(text, Config.TTS_VOICE)
             out = io.BytesIO()
             async for chunk in comm.stream():
                 if chunk["type"] == "audio": out.write(chunk["data"])
@@ -167,50 +155,62 @@ class Tools:
         except: return None
 
 # ====================================================================
-# 4. 🧠 إدارة البوت (Bot Logic)
+# 4. 🧠 العقل المدبر (Smart Brain)
 # ====================================================================
 class BotLogic:
     def __init__(self):
-        # فصلنا الذاكرة: التاريخ للمحادثة، و context للصورة الحالية
         self.users = defaultdict(lambda: {
-            'history': deque(maxlen=8), 
+            'history': deque(maxlen=10), # زيادة الذاكرة قليلاً
             'img_context': None
         })
 
     def process_text(self, user_id, text, is_voice_msg=False):
         user_data = self.users[user_id]
         
-        # إذا كانت رسالة صوتية، نضيف ملاحظة للنظام
-        voice_note_prompt = "(User sent a voice note): " if is_voice_msg else ""
+        # إضافة ملاحظة إذا كانت رسالة صوتية
+        voice_hint = "[User sent a Voice Note]: " if is_voice_msg else ""
         
+        # ✅ البرومبت الذكي (Smart System Prompt)
+        # يعلم البوت متى ينفذ الأمر ومتى ينتظر التفاصيل
         system_prompt = f"""
-        أنت مساعد ذكي (Boykta).
-        - السياق البصري الحالي (إن وجد): {user_data['img_context'] or 'لا يوجد'}
+        أنت (Boykta)، مساعد ذكي جزائري.
         
-        الأوامر التنفيذية (يجب أن تكون في بداية الرد):
-        1. للرسم: `CMD_IMAGE: <English Prompt>`
-        2. للصوت: `CMD_AUDIO: <Text>`
-        3. للرياضيات المعقدة: `CMD_MATH: <LaTeX>`
-        
-        ملاحظة: إذا طلب المستخدم "رسم"، ترجم الطلب للإنجليزية وضعه في الأمر.
+        🚨 تعليمات هامة جداً للسياق:
+        1. **الصور (Images):**
+           - إذا سأل المستخدم "هل يمكنك الرسم؟"، أجب بـ "نعم، ماذا أرسم؟" (لا ترسل أمر الرسم).
+           - فقط عندما يعطيك وصفاً للصورة، أرسل الأمر: `CMD_IMAGE: <English Description>`
+           
+        2. **الصوت (Audio):**
+           - إذا سأل "هل تتكلم؟"، أجب بـ "نعم، ماذا أقول؟"
+           - فقط عندما يطلب قراءة نص معين، أرسل: `CMD_AUDIO: <Text>`
+
+        3. **الرياضيات:**
+           - استخدم `CMD_MATH: <LaTeX>` للمعادلات المعقدة فقط.
+
+        معلومات السياق (صورة سابقة): {user_data['img_context'] or 'لا يوجد'}
         """
         
-        msgs = [{"role": "system", "content": system_prompt}] + list(user_data['history']) + [{"role": "user", "content": voice_note_prompt + text}]
+        # دمج التاريخ مع الرسالة الجديدة
+        msgs = [{"role": "system", "content": system_prompt}] + list(user_data['history']) + [{"role": "user", "content": voice_hint + text}]
         
         reply = GroqClient.chat(msgs)
         
         if reply:
-            # حفظ في الذاكرة (بدون الأوامر البرمجية)
+            # حفظ الرد في التاريخ (ما عدا الأوامر التقنية للحفاظ على نظافة الذاكرة)
             if "CMD_" not in reply:
                 user_data['history'].append({"role": "user", "content": text})
                 user_data['history'].append({"role": "assistant", "content": reply})
+            else:
+                # نحفظ رسالة المستخدم فقط ليعرف البوت ماذا طلب سابقاً
+                user_data['history'].append({"role": "user", "content": text})
+                
             return reply
-        return "حدث خطأ في المعالجة."
+        return "حدث خطأ في الاتصال."
 
 bot = BotLogic()
 
 # ====================================================================
-# 5. 🌐 واجهة فيسبوك (Facebook Interface)
+# 5. 🌐 خادم فيسبوك (Facebook Server)
 # ====================================================================
 app = Flask(__name__)
 FB_API = "https://graph.facebook.com/v19.0/me/messages"
@@ -224,7 +224,6 @@ def fb_send(uid, payload, files=None):
 
 def send_text(uid, txt, quick_replies=None):
     if not txt: return
-    # إرسال رسالة نصية (مع أزرار اختيارية)
     chunks = textwrap.wrap(txt, 1900, replace_whitespace=False)
     for i, chunk in enumerate(chunks):
         msg_data = {'text': chunk}
@@ -238,7 +237,6 @@ def send_file(uid, data, type='image'):
     payload = {'recipient': json.dumps({'id': uid}), 'message': json.dumps({'attachment': {'type': type, 'payload': {}}})}
     fb_send(uid, payload, files={'filedata': (fname, data, mime)})
 
-# --- الويب هوك ---
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
@@ -256,82 +254,81 @@ def webhook():
         return 'OK'
 
 def handle_event(uid, msg):
-    # 1. فلتر اللايك 👍
+    # لايك 👍
     if msg.get('sticker_id'):
         send_text(uid, "👍")
         return
 
-    # 2. معالجة المرفقات (صور / صوت)
+    # مرفقات
     if 'attachments' in msg:
         atype = msg['attachments'][0]['type']
         url = msg['attachments'][0]['payload']['url']
 
-        # أ) صور 🖼️
+        # 1. صور 🖼️
         if atype == 'image':
             if msg.get('sticker_id'): return
-            send_text(uid, "جاري تحليل الصورة... 👁️")
+            send_text(uid, "جاري قراءة الصورة... 👁️")
             
-            # محاولة الاستخراج
-            res = GroqClient.vision(url, "Describe this image in detail. Extract any text/math exactly.")
+            # استخدام البرومبت البسيط للموديل 11b
+            res = GroqClient.vision(url, "Extract all text from this image perfectly. If no text, describe the image.")
             
             if res['status'] == 'success':
                 bot.users[uid]['img_context'] = res['text']
-                btns = {"📝 حل": "cmd_solve", "📄 النص": "cmd_extract", "🎨 وصف": "cmd_describe"}
-                send_text(uid, "تم التحليل بنجاح! ماذا تريد؟", quick_replies=btns)
+                btns = {"📝 حل": "حل هذا", "📄 استخراج": "استخرج النص", "🎨 وصف": "صف الصورة"}
+                send_text(uid, "قرأت الصورة! ماذا أفعل؟", quick_replies=btns)
             else:
-                # طباعة سبب الخطأ للمستخدم لتشخيص المشكلة
-                send_text(uid, f"⚠️ فشل التحليل. السبب التقني:\n{res['text']}")
+                send_text(uid, f"⚠️ خطأ تقني: {res['text']}")
             return
 
-        # ب) صوت 🎙️ (ميزة جديدة)
+        # 2. صوت 🎙️
         elif atype == 'audio':
-            send_text(uid, "جاري الاستماع... 🎧")
-            transcription = GroqClient.audio_transcription(url)
-            if transcription:
-                send_text(uid, f"🎤 قلت: {transcription}")
-                # نرسل النص المفرغ للمعالجة كأنه رسالة نصية
-                process_bot_response(uid, transcription, is_voice=True)
+            send_text(uid, "أسمعك... 🎧")
+            text_voice = GroqClient.audio_transcription(url)
+            if text_voice:
+                send_text(uid, f"🎤 {text_voice}") # تأكيد ما سمعه
+                # إرسال النص للبوت ليرد عليه
+                process_bot_response(uid, text_voice, is_voice=True)
             else:
-                send_text(uid, "لم أستطع سماع الصوت بوضوح.")
+                send_text(uid, "الصوت غير واضح.")
             return
 
-    # 3. معالجة النصوص
+    # نصوص
     text = msg.get('text')
     if text:
         process_bot_response(uid, text)
 
 def process_bot_response(uid, text, is_voice=False):
-    # معالجة الأزرار السريعة
-    if text == "cmd_solve": text = "حل التمرين في الصورة بالتفصيل"
-    elif text == "cmd_extract": text = "أعطني النص المستخرج فقط"
-    elif text == "cmd_describe": text = "صف لي الصورة"
-
-    # الحصول على الرد من الذكاء
+    # استدعاء الذكاء
     response = bot.process_text(uid, text, is_voice_msg=is_voice)
 
     # تنفيذ الأوامر المضمنة
     if "CMD_IMAGE:" in response:
-        send_text(uid, "جاري الرسم... 🎨")
         prompt = response.split("CMD_IMAGE:")[1].strip()
+        send_text(uid, f"جاري رسم: {prompt} 🎨")
         img = Tools.generate_image(prompt)
         if img: send_file(uid, img, 'image')
-        else: send_text(uid, "فشل السيرفر في الرسم.")
+        else: send_text(uid, "فشل الرسم.")
 
     elif "CMD_AUDIO:" in response:
-        send_text(uid, "جاري التسجيل... 🎙️")
         txt = response.split("CMD_AUDIO:")[1].strip()
+        send_text(uid, "جاري التحدث... 🗣️") # إشعار قبل الارسال
         aud = Tools.text_to_speech(txt)
         if aud: send_file(uid, aud, 'audio')
+        else: send_text(uid, "فشل توليد الصوت.")
 
     elif "CMD_MATH:" in response:
         latex = response.split("CMD_MATH:")[1].strip()
-        send_text(uid, "الحل الرياضي:")
         img = Tools.render_latex(latex)
-        if img: send_file(uid, img, 'image')
-        else: send_text(uid, latex) # بديل نصي
+        if img: 
+            send_text(uid, "الحل الرياضي:")
+            send_file(uid, img, 'image')
+        else: 
+            send_text(uid, latex)
 
     else:
-        # رد نصي عادي
+        # إذا كان الرد نصياً والرسالة الأصلية كانت صوتية -> هل تريد الرد صوتياً؟
+        # هذه ميزة إضافية ذكية: إذا كلمته بالصوت، يمكنه الرد بالصوت اختيارياً
+        # حالياً نرسل نصاً دائماً للسرعة
         send_text(uid, response)
 
 if __name__ == '__main__':
