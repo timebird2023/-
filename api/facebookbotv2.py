@@ -24,16 +24,16 @@ class Config:
     VERIFY_TOKEN = 'boykta2025'
     PAGE_ACCESS_TOKEN = 'EAAYa4tM31ZAMBPZBZBIKE5832L12MHi04tWJOFSv4SzTY21FZCgc6KSnNvkSFDZBZAbUzDGn7NDSxzxERKXx57ZAxTod7B0mIyqfwpKF1NH8vzxu2Ahn16o7OCLSZCG8SvaJ3eDyFJPiqYq6z1TXxSb0OxZAF4vMY3vO20khvq6ZB1nCW4S6se2sxTCVezt1YiGLEZAWeK9'
 
-    # 🔒 تم فصل المفاتيح لتجنب حظر GitHub
-    # المفاتيح هنا ناقصة (بدون gsk_)
+    # 🔒 حماية المفاتيح (مفصولة)
     _PARTIAL_KEYS = [
         "mwhCmwL1LNpcQvdMTHGvWGdyb3FYfU2hS7oMXV65vqEfROmTVr0q",
         "uKouecFAYlbnRuy0Nn2rWGdyb3FY15KRhNRZyQsBUBBugKcU8C2N",
         "jkVCijtNhFZ20uU7QTn5WGdyb3FYh2XK4b3uqYVoEN52Xjm9gN1d"
     ]
     
+    # 🚨 التعديل الجوهري: استخدام الموديل الأقوى (90b) كخيار وحيد للرؤية لضمان الدقة
     MODEL_CHAT = "llama-3.1-8b-instant"
-    VISION_MODELS = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+    MODEL_VISION = "llama-3.2-90b-vision-preview" 
 
     @staticmethod
     def get_key(index):
@@ -41,7 +41,7 @@ class Config:
         return "gsk_" + Config._PARTIAL_KEYS[index % len(Config._PARTIAL_KEYS)]
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(message)s')
-logger = logging.getLogger("BoyktaBot_Final_Secure")
+logger = logging.getLogger("BoyktaBot_V6_Stable")
 
 # ====================================================================
 # 2. 🧠 الذكاء البصري واللغوي (AI Core)
@@ -51,41 +51,43 @@ class AIService:
         self.users = defaultdict(lambda: {'history': deque(maxlen=6), 'extracted_text': None})
 
     def _call_groq(self, messages, model, temp=0.5):
-        """دالة اتصال عامة مع إعادة المحاولة وتدوير المفاتيح"""
+        """دالة اتصال قوية مع تدوير المفاتيح"""
         for i in range(len(Config._PARTIAL_KEYS)):
             key = Config.get_key(i)
             try:
                 headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-                payload = {"model": model, "messages": messages, "temperature": temp}
+                # زيادة الـ tokens للموديل البصري ليقرأ النصوص الطويلة
+                max_tokens = 2048 if "vision" in model else 1024
+                payload = {"model": model, "messages": messages, "temperature": temp, "max_tokens": max_tokens}
                 
                 resp = requests.post("https://api.groq.com/openai/v1/chat/completions", 
-                                   json=payload, headers=headers, timeout=30)
+                                   json=payload, headers=headers, timeout=45) # زيادة وقت الانتظار
                 
                 if resp.status_code == 200:
-                    return resp.json()['choices'][0]['message']['content']
+                    content = resp.json()['choices'][0]['message']['content']
+                    if content: return content
                 else:
-                    logger.warning(f"Groq Fail ({model}): {resp.status_code}")
+                    logger.warning(f"Groq Fail ({model}) Status: {resp.status_code}")
             except Exception as e:
                 logger.error(f"Groq Error: {e}")
         return None
 
     def extract_text_from_image(self, user_id, img_url):
-        """محرك OCR ذكي: يحاول بالموديل السريع، ثم القوي"""
+        """
+        محرك OCR المطور (V6): يستخدم الموديل الأقوى بتعليمات مرنة.
+        """
+        # تعليمات مبسطة جداً لضمان عدم الفشل
         prompt = """
-        SYSTEM: You are a strict OCR engine. 
-        TASK: Extract ALL text, numbers, and mathematical formulas from this image exactly as they appear.
-        OUTPUT: Just the text. No conversational filler like "Here is the text".
+        Describe this image in detail. 
+        If it contains text, write it out EXACTLY as it appears. 
+        If it contains math, write the equations in LaTeX.
+        If it's just a photo, describe what you see.
         """
         msg = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": img_url}}]}]
         
-        # 1. المحاولة السريعة
-        extracted = self._call_groq(msg, Config.VISION_MODELS[0])
+        # استخدام الموديل القوي مباشرة
+        extracted = self._call_groq(msg, Config.MODEL_VISION)
         
-        # 2. المحاولة القوية (إذا فشل الأول)
-        if not extracted:
-            logger.info("Switching to 90b model for better OCR...")
-            extracted = self._call_groq(msg, Config.VISION_MODELS[1])
-
         if extracted:
             self.users[user_id]['extracted_text'] = extracted
             return True
@@ -97,21 +99,23 @@ class AIService:
 
         if task_type == "solve":
             sys_prompt = f"""
-            أنت مدرس ذكي. لديك نص تمرين:
+            أنت أستاذ فيزياء ورياضيات جزائري محترف.
+            لديك نص تمرين مستخرج من صورة:
             ---
             {context_text}
             ---
-            المطلوب: حل التمرين بالمنهج الجزائري خطوة بخطوة.
-            قاعدة: المعادلات الرياضية اكتبها بصيغة LaTeX محاطة بـ $$. مثال: $$ x^2 $$
+            المطلوب: حل هذا التمرين حلاً نموذجياً مفصلاً (خطوة بخطوة).
+            - استخدم LaTeX للمعادلات محاطة بـ $$. مثال: $$ E = mc^2 $$
+            - اشرح بالعربية والفرنسية (المصطلحات العلمية) كما في المنهج الجزائري.
             """
         elif task_type == "translate":
-            sys_prompt = f"ترجم النص التالي للعربية بدقة:\n{context_text}"
+            sys_prompt = f"ترجم المحتوى التالي للعربية ترجمة احترافية:\n{context_text}"
         else:
             sys_prompt = f"""
             أنت مساعد (Boykta).
             - للرسم: `CMD_IMAGE: <English Prompt>`
             - للصوت: `CMD_AUDIO: <Text>`
-            سياق سابق: {context_text}
+            سياق الصورة السابق: {context_text}
             """
 
         msgs = [{"role": "system", "content": sys_prompt}] + list(user_data['history']) + [{"role": "user", "content": user_input}]
@@ -133,24 +137,32 @@ class MediaTools:
     @staticmethod
     def render_latex(latex_formula):
         try:
-            clean_tex = latex_formula.replace('$$', '').strip()
-            fig, ax = plt.subplots(figsize=(8, 1.5))
+            # تنظيف الكود
+            clean_tex = latex_formula.replace('$$', '').replace(r'\[', '').replace(r'\]', '').strip()
+            if not clean_tex: return None
+            
+            fig, ax = plt.subplots(figsize=(10, 2)) # عرض أكبر للمعادلات الطويلة
             fig.patch.set_alpha(0)
             ax.axis('off')
-            ax.text(0.5, 0.5, f"${clean_tex}$", size=20, ha='center', va='center')
+            # استخدام خط أكبر
+            ax.text(0.5, 0.5, f"${clean_tex}$", size=22, ha='center', va='center')
+            
             buf = io.BytesIO()
             plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
             plt.close(fig)
             buf.seek(0)
             return buf.getvalue()
-        except: return None
+        except Exception as e: 
+            logger.error(f"Latex Error: {e}")
+            return None
 
     @staticmethod
     def get_image_bytes(prompt):
         try:
             safe_p = urllib.parse.quote(prompt)
-            url = f"https://image.pollinations.ai/prompt/{safe_p}?width=1024&height=1024&model=flux&seed={random.randint(1,9999)}"
-            return requests.get(url, timeout=25).content
+            # إضافة seed عشوائي لضمان عدم تكرار الصورة
+            url = f"https://image.pollinations.ai/prompt/{safe_p}?width=1024&height=1024&model=flux&seed={random.randint(1,99999)}"
+            return requests.get(url, timeout=30).content
         except: return None
 
     @staticmethod
@@ -181,10 +193,14 @@ class FB:
 
     @staticmethod
     def text(user_id, msg, quick_replies=None):
-        payload = {'recipient': {'id': user_id}, 'message': {'text': msg}}
-        if quick_replies:
-            payload['message']['quick_replies'] = [{"content_type": "text", "title": k, "payload": v} for k, v in quick_replies.items()]
-        FB.send(user_id, payload)
+        if not msg: return
+        # تقسيم الرسائل الطويلة جداً
+        chunks = textwrap.wrap(msg, 1900, replace_whitespace=False)
+        for i, chunk in enumerate(chunks):
+            payload = {'recipient': {'id': user_id}, 'message': {'text': chunk}}
+            if i == len(chunks) - 1 and quick_replies:
+                payload['message']['quick_replies'] = [{"content_type": "text", "title": k, "payload": v} for k, v in quick_replies.items()]
+            FB.send(user_id, payload)
 
     @staticmethod
     def file(user_id, file_data, type='image'):
@@ -222,22 +238,32 @@ def process(uid, msg):
     if 'attachments' in msg and msg['attachments'][0]['type'] == 'image':
         if msg.get('sticker_id'): return
         url = msg['attachments'][0]['payload']['url']
-        FB.text(uid, "لحظة، أقرأ الصورة داخلياً... 👁️")
+        FB.text(uid, "جاري تحليل الصورة (قد يستغرق لحظات)... 👁️")
         
+        # محاولة الاستخراج (ستنجح الآن باستخدام 90b)
         if ai.extract_text_from_image(uid, url):
-            btns = {"📝 حل التمرين": "cmd_solve", "🇬🇧 ترجمة": "cmd_translate", "📄 استخراج النص": "cmd_extract"}
-            FB.text(uid, "تم القراءة! ماذا تريد؟", quick_replies=btns)
+            btns = {
+                "📝 حل التمرين": "cmd_solve", 
+                "🇬🇧 ترجمة": "cmd_translate", 
+                "📄 استخراج النص": "cmd_extract",
+                "🖼️ وصف": "cmd_describe"
+            }
+            FB.text(uid, "تم القراءة! اختر ماذا تريد:", quick_replies=btns)
         else:
-            FB.text(uid, "تعذر قراءة الصورة، حاول مرة أخرى.")
+            # في حال الفشل النادر جداً
+            FB.text(uid, "لم أتمكن من استخراج النص، لكن يمكنك سؤالي عنه يدوياً.")
         return
 
     # معالجة النصوص
     text = msg.get('text')
     if not text: return
 
+    # الأوامر المباشرة من الأزرار
     if text == "cmd_solve":
-        FB.text(uid, "جاري الحل... 📐")
-        solution = ai.chat_brain(uid, "حل التمرين", "solve")
+        FB.text(uid, "جاري تحضير الحل... 📐")
+        solution = ai.chat_brain(uid, "حل التمرين بالتفصيل", "solve")
+        
+        # تقسيم الحل لاستخراج المعادلات ورسمها
         parts = re.split(r'(\$\$.*?\$\$)', solution, flags=re.DOTALL)
         for part in parts:
             if part.startswith('$$'):
@@ -248,34 +274,40 @@ def process(uid, msg):
         return
 
     elif text == "cmd_translate":
-        FB.text(uid, "جاري الترجمة...")
         FB.text(uid, ai.chat_brain(uid, "ترجم", "translate"))
         return
 
     elif text == "cmd_extract":
-        FB.text(uid, ai.users[uid].get('extracted_text', "لا يوجد نص."))
+        extracted = ai.users[uid].get('extracted_text', "لا يوجد نص.")
+        FB.text(uid, extracted[:1900]) # إرسال أول 1900 حرف لتجنب خطأ فيسبوك
+        if len(extracted) > 1900: FB.text(uid, extracted[1900:])
+        return
+        
+    elif text == "cmd_describe":
+        FB.text(uid, ai.users[uid].get('extracted_text', "لا يوجد وصف."))
         return
 
-    # محادثة عادية
+    # المحادثة العادية
     reply = ai.chat_brain(uid, text)
     
-    if "CMD_IMAGE:" in reply:
-        FB.text(uid, "جاري الرسم... 🎨")
-        img = MediaTools.get_image_bytes(reply.split("CMD_IMAGE:")[1].strip())
-        if img: FB.file(uid, img, 'image')
-        else: FB.text(uid, "فشل الرسم.")
-        
-    elif "CMD_AUDIO:" in reply:
-        FB.text(uid, "تسجيل... 🎙️")
-        aud = MediaTools.text_to_speech(reply.split("CMD_AUDIO:")[1].strip())
-        if aud: FB.file(uid, aud, 'audio')
-        
-    elif "CMD_MATH:" in reply:
-        img = MediaTools.render_latex(reply.split("CMD_MATH:")[1].strip())
-        if img: FB.file(uid, img, 'image')
-        
-    else:
-        FB.text(uid, reply)
+    if reply:
+        if "CMD_IMAGE:" in reply:
+            FB.text(uid, "جاري الرسم... 🎨")
+            img = MediaTools.get_image_bytes(reply.split("CMD_IMAGE:")[1].strip())
+            if img: FB.file(uid, img, 'image')
+            else: FB.text(uid, "تعذر الرسم.")
+            
+        elif "CMD_AUDIO:" in reply:
+            FB.text(uid, "تسجيل... 🎙️")
+            aud = MediaTools.text_to_speech(reply.split("CMD_AUDIO:")[1].strip())
+            if aud: FB.file(uid, aud, 'audio')
+            
+        elif "CMD_MATH:" in reply:
+            img = MediaTools.render_latex(reply.split("CMD_MATH:")[1].strip())
+            if img: FB.file(uid, img, 'image')
+            
+        else:
+            FB.text(uid, reply)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=Config.PORT)
