@@ -39,7 +39,7 @@ class Config:
         return "gsk_" + Config._PARTIAL_KEYS[index % len(Config._PARTIAL_KEYS)]
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("BoyktaBot_V3")
+logger = logging.getLogger("BoyktaBot_Final")
 
 # ====================================================================
 # 2. 🧹 المعالج والمنظف (The Parser & Cleaner)
@@ -51,14 +51,10 @@ class ContentParser:
     """
     @staticmethod
     def parse(ai_response):
-        """
-        يحلل الرد ويعيد قاموساً يحتوي على النوع والمحتوى
-        """
         if not ai_response:
             return {"type": "text", "content": "عذراً، حدث خطأ في المعالجة."}
 
         # 1. فحص أوامر الرسم
-        # يبحث عن CMD_IMAGE: متبوعاً بأي نص
         img_match = re.search(r'CMD_IMAGE:\s*(.+)', ai_response, re.IGNORECASE)
         if img_match:
             return {"type": "command_image", "content": img_match.group(1).strip()}
@@ -68,14 +64,12 @@ class ContentParser:
         if audio_match:
             return {"type": "command_audio", "content": audio_match.group(1).strip()}
 
-        # 3. فحص الرياضيات (لتحويلها لصورة)
-        # إذا كان النص يحتوي على LaTeX معقد، نعتبره رياضيات
-        # لكن نتأكد أنه ليس نصاً عربياً طويلاً لتجنب المربعات
+        # 3. فحص الرياضيات
         if "CMD_MATH:" in ai_response:
             math_content = ai_response.replace("CMD_MATH:", "").strip()
             return {"type": "math_render", "content": math_content}
 
-        # 4. نص عادي (نحذف أي شوائب بقيت)
+        # 4. نص عادي
         clean_text = ai_response.replace("CMD_IMAGE:", "").replace("CMD_AUDIO:", "").replace("CMD_MATH:", "")
         return {"type": "text", "content": clean_text.strip()}
 
@@ -84,37 +78,45 @@ class ContentParser:
 # ====================================================================
 class MediaEngine:
     @staticmethod
-    def render_math_to_image(latex_text):
+    def download_generated_image(prompt):
         """
-        تحويل المعادلات الرياضية لصورة.
-        لتجنب المربعات في العربية، سنستخدم خطاً افتراضياً للرياضيات فقط.
+        يقوم بتوليد الصورة وتحميلها كملف ثنائي (Binary) بدلاً من مجرد رابط
         """
         try:
-            fig, ax = plt.subplots(figsize=(10, 2)) # حجم مضغوط
+            seed = random.randint(1, 999999)
+            safe_prompt = urllib.parse.quote(prompt)
+            # إضافة model=flux لجودة عالية
+            url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&seed={seed}&model=flux&nologo=true"
+            
+            # ننتظر التحميل (Timeout 20 ثانية)
+            response = requests.get(url, timeout=25)
+            if response.status_code == 200:
+                return response.content # نرجع بيانات الصورة نفسها
+            return None
+        except Exception as e:
+            logger.error(f"Image Gen Error: {e}")
+            return None
+
+    @staticmethod
+    def render_math_to_image(latex_text):
+        try:
+            fig, ax = plt.subplots(figsize=(10, 2))
             ax.axis('off')
-            
-            # نستخدم render latex الخاص بـ matplotlib
-            # نضع النص داخل $$ ليتم معاملته كرياضيات
-            # نقوم بتنظيف النص قليلاً
+            # تنظيف النص
             clean_latex = f"${latex_text.replace('$', '')}$"
-            
-            ax.text(0.5, 0.5, clean_latex, 
-                    ha='center', va='center', fontsize=20, color='black')
+            ax.text(0.5, 0.5, clean_latex, ha='center', va='center', fontsize=20, color='black')
             
             buf = io.BytesIO()
-            plt.savefig(buf, format='png', bbox_inches='tight', dpi=150, transparent=False)
+            plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
             plt.close(fig)
             buf.seek(0)
             return buf.getvalue()
-        except Exception as e:
-            logger.error(f"Render Error: {e}")
+        except:
             return None
 
     @staticmethod
     def generate_voice(text):
-        """توليد الصوت باستخدام Edge-TTS"""
         async def _run():
-            # نستخدم صوت سلمى المصري فهو ممتاز
             communicate = edge_tts.Communicate(text, "ar-EG-SalmaNeural")
             out = io.BytesIO()
             async for chunk in communicate.stream():
@@ -141,32 +143,30 @@ class FacebookAPI:
     @staticmethod
     def send_text(user_id, text, quick_replies=None):
         if not text: return
-        
-        # تقسيم النص الطويل
         chunks = textwrap.wrap(text, 1900, replace_whitespace=False)
-        
         for i, chunk in enumerate(chunks):
             payload = {'recipient': {'id': user_id}, 'message': {'text': chunk}}
-            
-            # نضيف الأزرار فقط مع آخر جزء من الرسالة
             if i == len(chunks) - 1 and quick_replies:
                 qr_list = []
                 for title, data in quick_replies.items():
                     qr_list.append({"content_type": "text", "title": title, "payload": data})
                 payload['message']['quick_replies'] = qr_list
-                
             requests.post(f"{FacebookAPI.URL}?access_token={Config.PAGE_ACCESS_TOKEN}", json=payload)
 
     @staticmethod
     def send_file(user_id, file_data, type='image'):
-        files = {'filedata': ('file.png' if type=='image' else 'audio.mp3', file_data, 'image/png' if type=='image' else 'audio/mpeg')}
-        payload = {'recipient': json.dumps({'id': user_id}), 'message': json.dumps({'attachment': {'type': type, 'payload': {}}})}
+        """إرسال ملف (يقبل Binary Data)"""
+        filename = 'image.png' if type == 'image' else 'audio.mp3'
+        mime = 'image/png' if type == 'image' else 'audio/mpeg'
+        
+        files = {
+            'filedata': (filename, file_data, mime)
+        }
+        payload = {
+            'recipient': json.dumps({'id': user_id}), 
+            'message': json.dumps({'attachment': {'type': type, 'payload': {}}})
+        }
         requests.post(f"{FacebookAPI.URL}?access_token={Config.PAGE_ACCESS_TOKEN}", data=payload, files=files)
-
-    @staticmethod
-    def send_image_url(user_id, url):
-        requests.post(f"{FacebookAPI.URL}?access_token={Config.PAGE_ACCESS_TOKEN}",
-                      json={'recipient': {'id': user_id}, 'message': {'attachment': {'type': 'image', 'payload': {'url': url, 'is_reusable': True}}}})
 
 # ====================================================================
 # 5. 🧠 العقل المركزي (The Brain)
@@ -175,26 +175,24 @@ class BotBrain:
     def __init__(self):
         self.db = defaultdict(lambda: {'history': deque(maxlen=6), 'img_ctx': None})
 
-    def ask_ai(self, messages, model, temp=0.7):
-        """دالة موحدة للاتصال بـ Groq"""
-        for attempt in range(3): # 3 محاولات بمفاتيح مختلفة
+    def ask_ai(self, messages, model):
+        for attempt in range(3):
             key = Config.get_api_key(attempt)
             try:
                 resp = requests.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers={"Authorization": f"Bearer {key}"},
-                    json={"model": model, "messages": messages, "temperature": temp},
+                    json={"model": model, "messages": messages},
                     timeout=30
                 )
                 if resp.status_code == 200:
                     return resp.json()['choices'][0]['message']['content']
-            except Exception as e:
-                logger.error(f"AI Error ({attempt}): {e}")
+            except:
+                pass
         return None
 
     def process_image(self, user_id, img_url):
-        """تحليل الصورة"""
-        prompt = "Analyze this image. If it's math/physics, solve it. If text, extract it. If object, describe it. Return concise summary."
+        prompt = "Analyze this image. If math, solve it. If text, extract it. If general, describe it. Return concise summary."
         msgs = [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": img_url}}]}]
         analysis = self.ask_ai(msgs, Config.MODEL_VISION)
         if analysis:
@@ -203,27 +201,18 @@ class BotBrain:
         return None
 
     def chat(self, user_id, user_msg):
-        """معالجة المحادثة"""
         user_data = self.db[user_id]
-        
-        # 1. تحضير السياق
         system_instruction = f"""
-        أنت مساعد ذكي ومحترف.
-        القواعد الصارمة جداً:
-        1. إذا طلب المستخدم إنشاء صورة -> رد فقط بـ: CMD_IMAGE: <وصف بالانجليزية>
-        2. إذا طلب قراءة نص -> رد فقط بـ: CMD_AUDIO: <النص>
-        3. إذا كان الحل معادلة رياضية معقدة (LaTeX) -> رد فقط بـ: CMD_MATH: <LatexCode>
-        4. في الحالات العادية، رد بنص عربي مهذب ومختصر ومفيد.
-        
-        سياق الصورة المرفقة سابقاً (إن وجد): {user_data['img_ctx'] or "لا يوجد"}
+        أنت مساعد ذكي.
+        1. للرسم رد بـ: CMD_IMAGE: <English Prompt>
+        2. للصوت رد بـ: CMD_AUDIO: <Text>
+        3. للرياضيات المعقدة رد بـ: CMD_MATH: <Latex>
+        4. غير ذلك: رد نصي مفيد ومختصر.
+        سياق الصورة: {user_data['img_ctx'] or "لا يوجد"}
         """
-        
         msgs = [{"role": "system", "content": system_instruction}] + list(user_data['history']) + [{"role": "user", "content": user_msg}]
-        
-        # 2. الحصول على الرد
         raw_reply = self.ask_ai(msgs, Config.MODEL_CHAT)
         
-        # 3. حفظ في التاريخ (فقط النصوص العادية، لا نحفظ الأوامر البرمجية)
         if raw_reply and "CMD_" not in raw_reply:
             user_data['history'].append({"role": "user", "content": user_msg})
             user_data['history'].append({"role": "assistant", "content": raw_reply})
@@ -252,73 +241,64 @@ def webhook():
         return 'OK'
 
 def process_event(user_id, msg):
-    # 1. إظهار "جاري الكتابة" فوراً لإعطاء شعور بالسرعة
     FacebookAPI.send_typing(user_id)
 
-    # 🛑 2. تصفية "الجام" (Like Sticker)
-    # اللايك له sticker_id محدد وغالباً يكون 369239263222822
-    # لكن سنفحص وجود أي sticker_id لنتجنب معالجتها كصور
+    # فلتر اللايك 👍
     if msg.get('sticker_id'):
-        FacebookAPI.send_text(user_id, "👍") # رد سريع بنفس الحركة
+        FacebookAPI.send_text(user_id, "👍") 
         return
 
-    # 🖼️ 3. معالجة الصور المرفقة
+    # الصور المرفقة
     if 'attachments' in msg and msg['attachments'][0]['type'] == 'image':
-        # تأكد أنها ليست ستيكر (بعض الستيكرات تأتي كمرفق صورة)
         if msg.get('sticker_id'): 
             FacebookAPI.send_text(user_id, "❤️")
             return
-
         url = msg['attachments'][0]['payload']['url']
-        FacebookAPI.send_text(user_id, "لحظة، أحلل الصورة... 🧐")
-        
+        FacebookAPI.send_text(user_id, "جاري تحليل الصورة... 🧐")
         analysis = bot.process_image(user_id, url)
         if analysis:
-            # نقترح أزراراً بناءً على التحليل (بسيط)
-            btns = {"📝 حل/شرح": "اشرح لي", "🎨 وصف": "صف الصورة"}
-            FacebookAPI.send_text(user_id, "تم التحليل! ماذا تريد؟", quick_replies=btns)
+            FacebookAPI.send_text(user_id, "تم التحليل! ماذا تريد؟", quick_replies={"📝 حل/شرح": "اشرح لي", "🎨 وصف": "صف الصورة"})
         else:
-            FacebookAPI.send_text(user_id, "لم أستطع قراءة الصورة بوضوح.")
+            FacebookAPI.send_text(user_id, "لم أستطع قراءة الصورة.")
         return
 
-    # 💬 4. معالجة النصوص
+    # النصوص
     text = msg.get('text')
     if not text: return
 
-    # استدعاء العقل المدبر
     raw_response = bot.chat(user_id, text)
-    
-    # تنظيف وتفسير الرد (هنا السحر ✨)
     parsed = ContentParser.parse(raw_response)
 
-    # تنفيذ الأمر المناسب
+    # 1. الرسم (تم الإصلاح هنا) 🎨
     if parsed['type'] == 'command_image':
         FacebookAPI.send_text(user_id, "جاري الرسم... 🎨")
-        # رابط Pollinations ممتاز ومجاني
-        prompt_safe = urllib.parse.quote(parsed['content'])
-        img_url = f"https://image.pollinations.ai/prompt/{prompt_safe}?width=1024&height=1024&model=flux&seed={random.randint(0,9999)}"
-        FacebookAPI.send_image_url(user_id, img_url)
+        # التحميل أولاً
+        img_data = MediaEngine.download_generated_image(parsed['content'])
+        if img_data:
+            FacebookAPI.send_file(user_id, img_data, 'image')
+        else:
+            FacebookAPI.send_text(user_id, "عذراً، السيرفر مشغول، حاول مرة أخرى.")
 
+    # 2. الصوت 🎙️
     elif parsed['type'] == 'command_audio':
         FacebookAPI.send_text(user_id, "جاري التسجيل... 🎙️")
         audio_data = MediaEngine.generate_voice(parsed['content'])
         if audio_data:
             FacebookAPI.send_file(user_id, audio_data, 'audio')
         else:
-            FacebookAPI.send_text(user_id, "عذراً، حدث خطأ في الصوت.")
+            FacebookAPI.send_text(user_id, "فشل توليد الصوت.")
 
+    # 3. الرياضيات 📐
     elif parsed['type'] == 'math_render':
-        # نحول المعادلة لصورة، ونرسلها
-        FacebookAPI.send_text(user_id, "الحل الرياضي 📐:")
+        FacebookAPI.send_text(user_id, "الحل الرياضي:")
         img_data = MediaEngine.render_math_to_image(parsed['content'])
         if img_data:
             FacebookAPI.send_file(user_id, img_data, 'image')
         else:
-            # فشل الرسم؟ أرسل النص كما هو كخطة بديلة
             FacebookAPI.send_text(user_id, parsed['content'])
 
-    else: # type == text
-        # رد نصي عادي مع أزرار مقترحة دائماً للحفاظ على التفاعل
+    # 4. نص عادي 💬
+    else:
         suggestions = {"🗣️ اسمعها": "اقرأ النص", "🎨 تخيلها": "ارسم لي صورة"}
         FacebookAPI.send_text(user_id, parsed['content'], quick_replies=suggestions)
 
