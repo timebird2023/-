@@ -1,5 +1,6 @@
-flask
+Flask
 requests
-gunicorn
+yt-dlp
+supabase
 edge-tts
-matplotlib
+google-generativeai
