@@ -2,18 +2,22 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/facebookbotv2.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/webhook",
-      "dest": "api/facebookbotv2.py"
+      "dest": "api/index.py"
     },
     {
-      "src": "/.*",
-      "dest": "api/facebookbotv2.py"
+      "src": "/supabase-config",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
     }
   ]
 }
