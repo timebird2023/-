@@ -1,6 +1,3 @@
-Flask
-requests
-yt-dlp
-supabase
-edge-tts
-google-generativeai
+fastapi
+uvicorn
+httpx
