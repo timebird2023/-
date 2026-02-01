@@ -796,42 +796,42 @@
             initPasswordToggles();
         }
         
-        // Initialize option cards
         function initOptionCards() {
             document.querySelectorAll('.option-card[data-value]').forEach(card => {
                 card.addEventListener('click', function() {
-                    const parent = this.closest('div');
-                    const hiddenInput = parent.querySelector('input[type="hidden"]');
-                    const fieldId = hiddenInput?.id;
+                    // التعديل: البحث في الحاوية الأكبر للقسم بدلاً من أقرب div
+                    const container = this.closest('.md:col-span-2') || this.closest('.mb-8');
+                    const hiddenInput = container ? container.querySelector('input[type="hidden"]') : null;
+                    
+                    if (!hiddenInput) return;
+
+                    const fieldId = hiddenInput.id;
                     const value = this.getAttribute('data-value');
                     
-                    // Remove selected class from siblings
+                    // إزالة التحديد عن الأخوة
                     this.parentElement.querySelectorAll('.option-card').forEach(sibling => {
                         sibling.classList.remove('selected');
                     });
                     
-                    // Add selected class to clicked card
                     this.classList.add('selected');
                     
-                    // Update hidden input
-                    if (fieldId && hiddenInput) {
-                        hiddenInput.value = value;
-                    }
+                    // تحديث القيمة
+                    hiddenInput.value = value;
                     
-                    // Special handling for gender selection
                     if (fieldId === 'gender') {
                         updateGenderSpecificSections(value);
                     }
                     
-                    // Special handling for children
                     if (fieldId === 'has_children') {
                         const childrenSection = document.getElementById('childrenCountSection');
                         if (value === 'true') {
                             childrenSection.classList.remove('hidden');
-                            document.querySelector('[name="children_count"]').required = true;
+                            const countInput = document.querySelector('[name="children_count"]');
+                            if(countInput) countInput.required = true;
                         } else {
                             childrenSection.classList.add('hidden');
-                            document.querySelector('[name="children_count"]').required = false;
+                            const countInput = document.querySelector('[name="children_count"]');
+                            if(countInput) countInput.required = false;
                         }
                     }
                 });
