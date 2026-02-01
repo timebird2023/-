@@ -798,26 +798,34 @@
         
         function initOptionCards() {
             document.querySelectorAll('.option-card[data-value]').forEach(card => {
-                card.addEventListener('click', function() {
-                    // التعديل: البحث في الحاوية الأكبر للقسم بدلاً من أقرب div
-                    const container = this.closest('.md:col-span-2') || this.closest('.mb-8');
+                card.addEventListener('click', function(e) {
+                    // منع أي تداخل مع عناصر أخرى
+                    e.stopPropagation();
+
+                    // البحث عن الحاوية الصحيحة التي تضم البطاقات والحقل المخفي
+                    const container = this.closest('.md:col-span-2') || this.closest('.mb-8') || this.parentElement.parentElement;
                     const hiddenInput = container ? container.querySelector('input[type="hidden"]') : null;
                     
                     if (!hiddenInput) return;
 
-                    const fieldId = hiddenInput.id;
                     const value = this.getAttribute('data-value');
                     
-                    // إزالة التحديد عن الأخوة
+                    // 1. تحديث الشكل المرئي: تمييز البطاقة المختارة باللون البنفسجي
                     this.parentElement.querySelectorAll('.option-card').forEach(sibling => {
                         sibling.classList.remove('selected');
                     });
-                    
                     this.classList.add('selected');
                     
-                    // تحديث القيمة
+                    // 2. تحديث القيمة الفعلية في الحقل الذي يقرأه السيرفر
                     hiddenInput.value = value;
-                    
+
+                    // 3. الخطوة الهامة: مسح رسالة الخطأ الحمراء "هذا الحقل مطلوب" فور الاختيار
+                    if (typeof clearFieldError === 'function') {
+                        clearFieldError(hiddenInput);
+                    }
+
+                    // التعامل مع الحالات الخاصة (الجنس، الأطفال)
+                    const fieldId = hiddenInput.id || hiddenInput.name;
                     if (fieldId === 'gender') {
                         updateGenderSpecificSections(value);
                     }
@@ -826,12 +834,8 @@
                         const childrenSection = document.getElementById('childrenCountSection');
                         if (value === 'true') {
                             childrenSection.classList.remove('hidden');
-                            const countInput = document.querySelector('[name="children_count"]');
-                            if(countInput) countInput.required = true;
                         } else {
                             childrenSection.classList.add('hidden');
-                            const countInput = document.querySelector('[name="children_count"]');
-                            if(countInput) countInput.required = false;
                         }
                     }
                 });
