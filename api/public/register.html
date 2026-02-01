@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل عضو جديد - زفاف</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #8a2be2;
+            --primary-light: #9d4edd;
+            --secondary: #ffd700;
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #f8f7ff 0%, #e6e6fa 100%);
+            min-height: 100vh;
+        }
+        
+        .step-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: linear-gradient(135deg, #e6e6fa 0%, #d8bfd8 100%);
+            color: #666;
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+        
+        .step-circle.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+        }
+        
+        .step-circle.completed {
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+            color: white;
+        }
+        
+        .step-line {
+            flex: 1;
+            height: 4px;
+            background: linear-gradient(to right, #e6e6fa, #d8bfd8);
+            margin: 0 -10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .step-line.active {
+            background: linear-gradient(to right, var(--primary), var(--primary-light));
+        }
+        
+        .step-line.completed {
+            background: linear-gradient(to right, #4caf50, #2e7d32);
+        }
+        
+        .form-step {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .form-step.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 12px;
+            font-weight: bold;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+            color: #666;
+            padding: 12px 30px;
+            border-radius: 12px;
+            font-weight: bold;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e6e6fa;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.1);
+        }
+        
+        .option-card {
+            border: 2px solid #e6e6fa;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .option-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+        }
+        
+        .option-card.selected {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.05) 0%, rgba(157, 78, 221, 0.05) 100%);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.1);
+        }
+        
+        .option-card i {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: linear-gradient(to right, var(--primary), var(--primary-light));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .char-counter {
+            font-size: 0.9rem;
+            color: #666;
+            text-align: left;
+            margin-top: 5px;
+        }
+        
+        .char-counter.warning {
+            color: #ff9800;
+        }
+        
+        .char-counter.danger {
+            color: #f44336;
+        }
+        
+        .field-error {
+            color: #f44336;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .border-red-500 {
+            border-color: #f44336 !important;
+        }
+    </style>
+</head>
+<body class="py-8">
+    <div class="container mx-auto px-4 max-w-6xl">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center">
+                    <i class="fas fa-heart text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-700 to-purple-900 bg-clip-text text-transparent">
+                        زفاف
+                    </h1>
+                    <p class="text-sm text-gray-500">Zefaaf.net</p>
+                </div>
+            </div>
+            
+            <div>
+                <a href="index.html" class="text-purple-600 hover:text-purple-800 font-semibold">
+                    <i class="fas fa-home ml-2"></i> العودة للرئيسية
+                </a>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-purple-900">تسجيل عضو جديد</h2>
+                <span class="text-gray-600 font-semibold" id="stepIndicator">الخطوة 1 من 4</span>
+            </div>
+            
+            <div class="bg-gray-200 rounded-full h-2 mb-2">
+                <div class="progress-bar rounded-full h-2" id="progressBar" style="width: 25%"></div>
+            </div>
+            
+            <!-- Step Indicators -->
+            <div class="flex items-center justify-between mt-8">
+                <div class="flex flex-col items-center">
+                    <div class="step-circle active" data-step="1">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span class="mt-2 text-sm font-semibold text-purple-700">البيانات الأساسية</span>
+                </div>
+                
+                <div class="step-line" id="line1"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="step-circle" data-step="2">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <span class="mt-2 text-sm text-gray-600">الحالة الاجتماعية</span>
+                </div>
+                
+                <div class="step-line" id="line2"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="step-circle" data-step="3">
+                        <i class="fas fa-mosque"></i>
+                    </div>
+                    <span class="mt-2 text-sm text-gray-600">المواصفات الدينية</span>
+                </div>
+                
+                <div class="step-line" id="line3"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="step-circle" data-step="4">
+                        <i class="fas fa-pen"></i>
+                    </div>
+                    <span class="mt-2 text-sm text-gray-600">التحدث عن النفس</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Registration Form -->
+        <div class="form-card p-6 md:p-10">
+            <form id="registrationForm">
+                <!-- Step 1: Basic Information -->
+                <div class="form-step active" id="step1">
+                    <h3 class="text-2xl font-bold mb-8 text-purple-800 border-b pb-4">
+                        <i class="fas fa-user ml-3"></i> البيانات الأساسية
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Gender Selection -->
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                أنا أبحث عن:
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="option-card" data-value="male">
+                                    <i class="fas fa-mars text-blue-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">زوجة</h4>
+                                    <p class="text-gray-600 text-sm">أبحث عن زوجة صالحة</p>
+                                </div>
+                                <div class="option-card" data-value="female">
+                                    <i class="fas fa-venus text-pink-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">زوج</h4>
+                                    <p class="text-gray-600 text-sm">أبحث عن زوج صالح</p>
+                                </div>
+                            </div>
+                            <input type="hidden" name="gender" id="gender" required>
+                        </div>
+                        
+                        <!-- Full Name -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                الاسم الكامل
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <input type="text" name="full_name" class="input-field" placeholder="أدخل اسمك الكامل" required>
+                        </div>
+                        
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                البريد الإلكتروني
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <input type="email" name="email" class="input-field" placeholder="example@email.com" required>
+                        </div>
+                        
+                        <!-- Password -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                كلمة المرور
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" name="password" class="input-field pr-10" placeholder="كلمة مرور قوية" required minlength="8">
+                                <button type="button" class="password-toggle absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="text-sm text-gray-500 mt-2">
+                                <i class="fas fa-info-circle ml-1"></i> يجب أن تكون 8 أحرف على الأقل
+                            </div>
+                        </div>
+                        
+                        <!-- Confirm Password -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                تأكيد كلمة المرور
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" name="confirm_password" class="input-field pr-10" placeholder="أعد إدخال كلمة المرور" required>
+                                <button type="button" class="password-toggle absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Phone -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                رقم الهاتف
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <input type="tel" name="phone" class="input-field" placeholder="مثال: 0551234567" required>
+                        </div>
+                        
+                        <!-- Birth Date -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                تاريخ الميلاد
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <input type="date" name="birth_date" class="input-field" required>
+                        </div>
+                        
+                        <!-- Country -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                الدولة
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <select name="country" class="input-field" required>
+                                <option value="">اختر الدولة</option>
+                                <option value="السعودية">السعودية</option>
+                                <option value="مصر">مصر</option>
+                                <option value="الإمارات">الإمارات</option>
+                                <option value="الأردن">الأردن</option>
+                                <option value="الكويت">الكويت</option>
+                                <option value="قطر">قطر</option>
+                                <option value="عُمان">عُمان</option>
+                                <option value="البحرين">البحرين</option>
+                                <option value="الجزائر">الجزائر</option>
+                                <option value="المغرب">المغرب</option>
+                                <option value="تونس">تونس</option>
+                                <option value="السودان">السودان</option>
+                                <option value="اليمن">اليمن</option>
+                                <option value="سوريا">سوريا</option>
+                                <option value="لبنان">لبنان</option>
+                                <option value="فلسطين">فلسطين</option>
+                                <option value="العراق">العراق</option>
+                                <option value="ليبيا">ليبيا</option>
+                                <option value="other">دولة أخرى</option>
+                            </select>
+                        </div>
+                        
+                        <!-- City -->
+                        <div>
+                            <label class="block text-gray-700 mb-2 font-semibold">
+                                المدينة
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <input type="text" name="city" class="input-field" placeholder="المدينة التي تقيم فيها" required>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between mt-12 pt-8 border-t border-gray-200">
+                        <div></div>
+                        <button type="button" class="btn-primary" onclick="nextStep()">
+                            التالي <i class="fas fa-arrow-left mr-2"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Marital Status -->
+                <div class="form-step" id="step2">
+                    <h3 class="text-2xl font-bold mb-8 text-purple-800 border-b pb-4">
+                        <i class="fas fa-heart ml-3"></i> الحالة الاجتماعية
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="option-card" data-value="أعزب/عزباء">
+                            <i class="fas fa-user text-blue-500"></i>
+                            <h4 class="font-bold text-lg mb-2">أعزب/عزباء</h4>
+                            <p class="text-gray-600 text-sm">لم يسبق لي الزواج</p>
+                        </div>
+                        
+                        <div class="option-card" data-value="مطلق/مطلقة">
+                            <i class="fas fa-heart-broken text-orange-500"></i>
+                            <h4 class="font-bold text-lg mb-2">مطلق/مطلقة</h4>
+                            <p class="text-gray-600 text-sm">سبق لي الزواج وانتهى</p>
+                        </div>
+                        
+                        <div class="option-card" data-value="أرمل/أرملة">
+                            <i class="fas fa-dove text-gray-500"></i>
+                            <h4 class="font-bold text-lg mb-2">أرمل/أرملة</h4>
+                            <p class="text-gray-600 text-sm">توفي زوجي/زوجتي</p>
+                        </div>
+                    </div>
+                    <input type="hidden" name="marital_status" id="marital_status" required>
+                    
+                    <!-- Children -->
+                    <div class="mb-8">
+                        <label class="block text-gray-700 mb-4 font-semibold">
+                            هل لديك أطفال؟
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="option-card" data-value="true">
+                                <i class="fas fa-child text-green-500"></i>
+                                <h4 class="font-bold text-lg mb-2">نعم</h4>
+                                <p class="text-gray-600 text-sm">لدي أطفال</p>
+                            </div>
+                            
+                            <div class="option-card" data-value="false">
+                                <i class="fas fa-times-circle text-gray-500"></i>
+                                <h4 class="font-bold text-lg mb-2">لا</h4>
+                                <p class="text-gray-600 text-sm">ليس لدي أطفال</p>
+                            </div>
+                        </div>
+                        <input type="hidden" name="has_children" id="has_children">
+                    </div>
+                    
+                    <!-- Number of Children (if applicable) -->
+                    <div id="childrenCountSection" class="hidden">
+                        <label class="block text-gray-700 mb-2 font-semibold">
+                            عدد الأطفال
+                        </label>
+                        <select name="children_count" class="input-field">
+                            <option value="1">1 طفل</option>
+                            <option value="2">2 أطفال</option>
+                            <option value="3">3 أطفال</option>
+                            <option value="4">4 أطفال</option>
+                            <option value="5+">5 أطفال أو أكثر</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-between mt-12 pt-8 border-t border-gray-200">
+                        <button type="button" class="btn-secondary" onclick="prevStep()">
+                            <i class="fas fa-arrow-right ml-2"></i> السابق
+                        </button>
+                        <button type="button" class="btn-primary" onclick="nextStep()">
+                            التالي <i class="fas fa-arrow-left mr-2"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Religious Specifications -->
+                <div class="form-step" id="step3">
+                    <h3 class="text-2xl font-bold mb-8 text-purple-800 border-b pb-4">
+                        <i class="fas fa-mosque ml-3"></i> المواصفات الدينية
+                    </h3>
+                    
+                    <div class="space-y-8">
+                        <!-- Prayer Level -->
+                        <div>
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                مستوى المحافظة على الصلاة
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="option-card" data-value="دائمًا في وقتها">
+                                    <i class="fas fa-pray text-green-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">دائمًا في وقتها</h4>
+                                    <p class="text-gray-600 text-sm">أصلي جميع الصلوات في وقتها</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="غالبًا في وقتها">
+                                    <i class="fas fa-praying-hands text-blue-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">غالبًا في وقتها</h4>
+                                    <p class="text-gray-600 text-sm">أصلي معظم الصلوات في وقتها</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="أحيانًا">
+                                    <i class="fas fa-hands-praying text-orange-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">أحيانًا</h4>
+                                    <p class="text-gray-600 text-sm">أصلي عندما أتذكر</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="نادرًا">
+                                    <i class="fas fa-times-circle text-gray-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">نادرًا</h4>
+                                    <p class="text-gray-600 text-sm">لا أصلي بانتظام</p>
+                                </div>
+                            </div>
+                            <input type="hidden" name="prayer_level" id="prayer_level" required>
+                        </div>
+                        
+                        <!-- Hijab Status (for females) -->
+                        <div id="hijabSection" class="hidden">
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                الحجاب
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="option-card" data-value="نقاب">
+                                    <i class="fas fa-female text-purple-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">نقاب</h4>
+                                    <p class="text-gray-600 text-sm">أرتدي النقاب</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="حجاب كامل">
+                                    <i class="fas fa-user-ninja text-indigo-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">حجاب كامل</h4>
+                                    <p class="text-gray-600 text-sm">حجاب شرعي كامل</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="حجاب جزئي">
+                                    <i class="fas fa-user-secret text-pink-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">حجاب جزئي</h4>
+                                    <p class="text-gray-600 text-sm">أرتدي الحجاب أحيانًا</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="بدون حجاب">
+                                    <i class="fas fa-times-circle text-gray-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">بدون حجاب</h4>
+                                    <p class="text-gray-600 text-sm">لا أرتدي الحجاب</p>
+                                </div>
+                            </div>
+                            <input type="hidden" name="hijab_status" id="hijab_status">
+                        </div>
+                        
+                        <!-- Beard Status (for males) -->
+                        <div id="beardSection" class="hidden">
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                اللحية
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="option-card" data-value="لحية كاملة">
+                                    <i class="fas fa-user text-brown-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">لحية كاملة</h4>
+                                    <p class="text-gray-600 text-sm">لحية طويلة وكاملة</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="لحية قصيرة">
+                                    <i class="fas fa-user-check text-blue-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">لحية قصيرة</h4>
+                                    <p class="text-gray-600 text-sm">لحية مهذبة وقصيرة</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="بدون لحية">
+                                    <i class="fas fa-user-times text-gray-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">بدون لحية</h4>
+                                    <p class="text-gray-600 text-sm">لا أحتفظ بلحية</p>
+                                </div>
+                            </div>
+                            <input type="hidden" name="beard_status" id="beard_status">
+                        </div>
+                        
+                        <!-- Smoking -->
+                        <div>
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                التدخين
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="option-card" data-value="لا أدخن">
+                                    <i class="fas fa-ban text-green-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">لا أدخن</h4>
+                                    <p class="text-gray-600 text-sm">لا أدخن مطلقًا</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="أحيانًا">
+                                    <i class="fas fa-smoking text-orange-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">أحيانًا</h4>
+                                    <p class="text-gray-600 text-sm">أدخن في المناسبات</p>
+                                </div>
+                                
+                                <div class="option-card" data-value="نعم">
+                                    <i class="fas fa-smoking text-red-500"></i>
+                                    <h4 class="font-bold text-lg mb-2">نعم</h4>
+                                    <p class="text-gray-600 text-sm">أدخن بانتظام</p>
+                                </div>
+                            </div>
+                            <input type="hidden" name="smoking" id="smoking" value="لا أدخن">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between mt-12 pt-8 border-t border-gray-200">
+                        <button type="button" class="btn-secondary" onclick="prevStep()">
+                            <i class="fas fa-arrow-right ml-2"></i> السابق
+                        </button>
+                        <button type="button" class="btn-primary" onclick="nextStep()">
+                            التالي <i class="fas fa-arrow-left mr-2"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 4: About Me -->
+                <div class="form-step" id="step4">
+                    <h3 class="text-2xl font-bold mb-8 text-purple-800 border-b pb-4">
+                        <i class="fas fa-pen ml-3"></i> التحدث عن النفس
+                    </h3>
+                    
+                    <p class="text-gray-600 mb-8 leading-relaxed">
+                        <i class="fas fa-info-circle text-purple-500 ml-2"></i>
+                        هذه المعلومات مهمة جدًا للمطابقة الذكية. اكتب عن نفسك بصراحة ووضوح، فكلما كانت المعلومات دقيقة كلما كانت المطابقة أفضل.
+                    </p>
+                    
+                    <div class="space-y-8">
+                        <!-- About Me -->
+                        <div>
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                تحدث عن نفسك
+                                <span class="text-red-500 mr-1">*</span>
+                                <span class="text-sm font-normal text-gray-500">
+                                    (هذا النص سيستخدم للبحث الدلالي والمطابقة الذكية)
+                                </span>
+                            </label>
+                            <textarea name="about_me" 
+                                      class="input-field h-48 resize-none" 
+                                      placeholder="اكتب عن نفسك، اهتماماتك، هواياتك، شخصيتك، أهدافك في الحياة..." 
+                                      required 
+                                      minlength="50"
+                                      maxlength="1000"
+                                      oninput="updateCharCount(this, 'aboutCount')"></textarea>
+                            <div class="char-counter" id="aboutCount">0/1000 حرف</div>
+                        </div>
+                        
+                        <!-- Looking For -->
+                        <div>
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                ما الذي تبحث عنه في شريك حياتك؟
+                                <span class="text-red-500 mr-1">*</span>
+                            </label>
+                            <textarea name="looking_for" 
+                                      class="input-field h-48 resize-none" 
+                                      placeholder="صف مواصفات شريك الحياة المناسب لك من الناحية الدينية، الشخصية، الاجتماعية..." 
+                                      required 
+                                      minlength="30"
+                                      maxlength="500"
+                                      oninput="updateCharCount(this, 'lookingCount')"></textarea>
+                            <div class="char-counter" id="lookingCount">0/500 حرف</div>
+                        </div>
+                        
+                        <!-- Additional Info -->
+                        <div>
+                            <label class="block text-gray-700 mb-4 font-semibold">
+                                معلومات إضافية
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-gray-600 mb-2">المهنة</label>
+                                    <input type="text" name="occupation" class="input-field" placeholder="مهنتك الحالية">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-gray-600 mb-2">المستوى التعليمي</label>
+                                    <select name="education" class="input-field">
+                                        <option value="">اختر المستوى التعليمي</option>
+                                        <option value="ثانوية عامة">ثانوية عامة</option>
+                                        <option value="دبلوم">دبلوم</option>
+                                        <option value="بكالوريوس">بكالوريوس</option>
+                                        <option value="ماجستير">ماجستير</option>
+                                        <option value="دكتوراه">دكتوراه</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Terms and Conditions -->
+                        <div class="bg-purple-50 p-6 rounded-xl border border-purple-200">
+                            <div class="flex items-start mb-4">
+                                <input type="checkbox" id="terms" name="terms" class="mt-1 ml-3" required>
+                                <label for="terms" class="text-gray-700">
+                                    أوافق على 
+                                    <a href="#" class="text-purple-600 hover:text-purple-800 font-semibold">الشروط والأحكام</a>
+                                    و
+                                    <a href="#" class="text-purple-600 hover:text-purple-800 font-semibold">سياسة الخصوصية</a>
+                                    الخاصة بمنصة زفاف
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <input type="checkbox" id="islamic_terms" name="islamic_terms" class="mt-1 ml-3" required>
+                                <label for="islamic_terms" class="text-gray-700">
+                                    أتعهد بالالتزام بالضوابط الشرعية في التعارف والزواج، وأن يكون التواصل عبر المنصة بوجود ولي الأمر
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between mt-12 pt-8 border-t border-gray-200">
+                        <button type="button" class="btn-secondary" onclick="prevStep()">
+                            <i class="fas fa-arrow-right ml-2"></i> السابق
+                        </button>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-check ml-2"></i> إكمال التسجيل
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Success Message -->
+                <div class="form-step" id="step5">
+                    <div class="text-center py-12">
+                        <div class="w-32 h-32 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-8">
+                            <i class="fas fa-check-circle text-green-500 text-6xl"></i>
+                        </div>
+                        
+                        <h3 class="text-3xl font-bold mb-6 text-green-600">تم التسجيل بنجاح!</h3>
+                        
+                        <p class="text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+                            تم تسجيل عضويتك بنجاح في منصة زفاف. يمكنك الآن الدخول إلى حسابك وإكمال ملفك الشخصي
+                            وإضافة الصور والبدء في البحث عن شريك حياتك المناسب.
+                        </p>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                            <button type="button" 
+                                    class="btn-primary px-8 py-3"
+                                    onclick="window.location.href='dashboard.html'">
+                                <i class="fas fa-tachometer-alt ml-2"></i> الانتقال للوحة التحكم
+                            </button>
+                            
+                            <button type="button" 
+                                    class="border-2 border-purple-600 text-purple-600 px-8 py-3 rounded-xl font-bold hover:bg-purple-50 transition"
+                                    onclick="window.location.href='index.html'">
+                                <i class="fas fa-home ml-2"></i> العودة للرئيسية
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Footer Note -->
+        <div class="mt-8 text-center text-gray-600 text-sm">
+            <p>
+                <i class="fas fa-lock ml-2"></i>
+                نضمن خصوصية بياناتك ولا نشاركها مع أي طرف ثالث. جميع البيانات مشفرة ومخزنة بشكل آمن.
+            </p>
+            <p class="mt-2">
+                <i class="fas fa-headset ml-2"></i>
+                للاستفسارات: <a href="mailto:support@zefaaf.net" class="text-purple-600">support@zefaaf.net</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/app.js"></script>
+    <script>
+        let currentStep = 1;
+        const totalSteps = 4;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initRegistrationPage();
+        });
+        
+        function initRegistrationPage() {
+            // التحقق من وجود جلسة سابقة
+            if (Zefaaf && Zefaaf.AuthService && Zefaaf.AuthService.isLoggedIn()) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            updateStepIndicator();
+            initOptionCards();
+            initFormValidation();
+            initPasswordToggles();
+        }
+        
+        // Initialize option cards
+        function initOptionCards() {
+            document.querySelectorAll('.option-card[data-value]').forEach(card => {
+                card.addEventListener('click', function() {
+                    const parent = this.closest('div');
+                    const hiddenInput = parent.querySelector('input[type="hidden"]');
+                    const fieldId = hiddenInput?.id;
+                    const value = this.getAttribute('data-value');
+                    
+                    // Remove selected class from siblings
+                    this.parentElement.querySelectorAll('.option-card').forEach(sibling => {
+                        sibling.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to clicked card
+                    this.classList.add('selected');
+                    
+                    // Update hidden input
+                    if (fieldId && hiddenInput) {
+                        hiddenInput.value = value;
+                    }
+                    
+                    // Special handling for gender selection
+                    if (fieldId === 'gender') {
+                        updateGenderSpecificSections(value);
+                    }
+                    
+                    // Special handling for children
+                    if (fieldId === 'has_children') {
+                        const childrenSection = document.getElementById('childrenCountSection');
+                        if (value === 'true') {
+                            childrenSection.classList.remove('hidden');
+                            document.querySelector('[name="children_count"]').required = true;
+                        } else {
+                            childrenSection.classList.add('hidden');
+                            document.querySelector('[name="children_count"]').required = false;
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Initialize password toggle buttons
+        function initPasswordToggles() {
+            document.querySelectorAll('.password-toggle').forEach(button => {
+                button.addEventListener('click', function() {
+                    const parent = this.closest('.relative');
+                    const input = parent.querySelector('input');
+                    const icon = this.querySelector('i');
+                    
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            });
+        }
+        
+        // Update gender-specific sections
+        function updateGenderSpecificSections(gender) {
+            const hijabSection = document.getElementById('hijabSection');
+            const beardSection = document.getElementById('beardSection');
+            
+            if (gender === 'female') {
+                hijabSection?.classList.remove('hidden');
+                beardSection?.classList.add('hidden');
+                document.getElementById('hijab_status')?.setAttribute('required', 'true');
+                document.getElementById('beard_status')?.removeAttribute('required');
+            } else if (gender === 'male') {
+                hijabSection?.classList.add('hidden');
+                beardSection?.classList.remove('hidden');
+                document.getElementById('hijab_status')?.removeAttribute('required');
+                document.getElementById('beard_status')?.setAttribute('required', 'true');
+            } else {
+                hijabSection?.classList.add('hidden');
+                beardSection?.classList.add('hidden');
+            }
+        }
+        
+        // Initialize form validation
+        function initFormValidation() {
+            // Real-time validation for email
+            const emailInput = document.querySelector('[name="email"]');
+            if (emailInput) {
+                emailInput.addEventListener('blur', function() {
+                    if (this.value && !Zefaaf.UIHelper.validateEmail(this.value)) {
+                        showFieldError(this, 'البريد الإلكتروني غير صالح');
+                    } else {
+                        clearFieldError(this);
+                    }
+                });
+            }
+            
+            // Real-time validation for password
+            const passwordInput = document.querySelector('[name="password"]');
+            if (passwordInput) {
+                passwordInput.addEventListener('blur', function() {
+                    if (this.value) {
+                        const validation = Zefaaf.UIHelper.validatePassword(this.value);
+                        if (!validation.isValid) {
+                            showFieldError(this, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على أرقام وحروف');
+                        } else {
+                            clearFieldError(this);
+                        }
+                    }
+                });
+            }
+            
+            // Real-time validation for confirm password
+            const confirmPasswordInput = document.querySelector('[name="confirm_password"]');
+            if (confirmPasswordInput && passwordInput) {
+                confirmPasswordInput.addEventListener('blur', function() {
+                    if (this.value && this.value !== passwordInput.value) {
+                        showFieldError(this, 'كلمات المرور غير متطابقة');
+                    } else {
+                        clearFieldError(this);
+                    }
+                });
+            }
+        }
+        
+        function showFieldError(input, message) {
+            const parent = input.parentElement;
+            let errorElement = parent.querySelector('.field-error');
+            
+            if (!errorElement) {
+                errorElement = document.createElement('div');
+                errorElement.className = 'field-error text-red-600 text-sm mt-1';
+                parent.appendChild(errorElement);
+            }
+            
+            errorElement.textContent = message;
+            input.classList.add('border-red-500');
+        }
+        
+        function clearFieldError(input) {
+            const parent = input.parentElement;
+            const errorElement = parent.querySelector('.field-error');
+            
+            if (errorElement) {
+                errorElement.remove();
+            }
+            
+            input.classList.remove('border-red-500');
+        }
+        
+        // Update character count
+        function updateCharCount(textarea, counterId) {
+            const counter = document.getElementById(counterId);
+            if (!counter) return;
+            
+            const length = textarea.value.length;
+            const maxLength = parseInt(textarea.getAttribute('maxlength')) || 1000;
+            
+            counter.textContent = `${length}/${maxLength} حرف`;
+            
+            // Update color based on length
+            counter.classList.remove('warning', 'danger');
+            if (length > maxLength * 0.8) {
+                counter.classList.add('warning');
+            }
+            if (length > maxLength * 0.9) {
+                counter.classList.add('danger');
+            }
+        }
+        
+        // Update step indicator
+        function updateStepIndicator() {
+            // Update progress bar
+            const progressPercentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                progressBar.style.width = `${progressPercentage}%`;
+            }
+            
+            // Update step indicator text
+            const stepIndicator = document.getElementById('stepIndicator');
+            if (stepIndicator) {
+                stepIndicator.textContent = `الخطوة ${currentStep} من ${totalSteps}`;
+            }
+            
+            // Update step circles and lines
+            for (let i = 1; i <= totalSteps; i++) {
+                const circle = document.querySelector(`.step-circle[data-step="${i}"]`);
+                const line = document.getElementById(`line${i}`);
+                
+                if (circle) {
+                    circle.classList.remove('active', 'completed');
+                    if (i === currentStep) {
+                        circle.classList.add('active');
+                    } else if (i < currentStep) {
+                        circle.classList.add('completed');
+                    }
+                }
+                
+                if (line) {
+                    line.classList.remove('active', 'completed');
+                    if (i < currentStep) {
+                        line.classList.add('completed');
+                    }
+                }
+            }
+            
+            // Show/hide steps
+            document.querySelectorAll('.form-step').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            const currentStepElement = document.getElementById(`step${currentStep}`);
+            if (currentStepElement) {
+                currentStepElement.classList.add('active');
+            }
+        }
+        
+        // Validate current step
+        function validateStep(step) {
+            const currentStepElement = document.getElementById(`step${step}`);
+            if (!currentStepElement) return false;
+            
+            const inputs = currentStepElement.querySelectorAll('[required]');
+            let isValid = true;
+            
+            for (const input of inputs) {
+                if (!input.value || input.value.trim() === '') {
+                    showFieldError(input, 'هذا الحقل مطلوب');
+                    if (isValid) {
+                        input.focus();
+                        isValid = false;
+                    }
+                } else {
+                    clearFieldError(input);
+                    
+                    // Special validation for passwords
+                    if (input.name === 'password' && input.value.length < 8) {
+                        showFieldError(input, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+                        if (isValid) {
+                            input.focus();
+                            isValid = false;
+                        }
+                    }
+                    
+                    if (input.name === 'confirm_password') {
+                        const password = document.querySelector('[name="password"]')?.value;
+                        if (input.value !== password) {
+                            showFieldError(input, 'كلمات المرور غير متطابقة');
+                            if (isValid) {
+                                input.focus();
+                                isValid = false;
+                            }
+                        }
+                    }
+                    
+                    // Age validation
+                    if (input.name === 'birth_date') {
+                        const birthDate = new Date(input.value);
+                        const today = new Date();
+                        const age = today.getFullYear() - birthDate.getFullYear();
+                        
+                        if (age < 18) {
+                            showFieldError(input, 'يجب أن يكون العمر 18 سنة على الأقل');
+                            if (isValid) {
+                                isValid = false;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return isValid;
+        }
+        
+        // Next step
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    updateStepIndicator();
+                    
+                    // Scroll to top of form
+                    const formCard = document.querySelector('.form-card');
+                    if (formCard) {
+                        formCard.scrollIntoView({ 
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Previous step
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepIndicator();
+            }
+        }
+        
+        // Form submission
+        document.getElementById('registrationForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Validate final step
+            if (!validateStep(currentStep)) {
+                Zefaaf.UIHelper.showNotification('يرجى ملء جميع الحقول المطلوبة بشكل صحيح', 'error');
+                return;
+            }
+            
+            // Collect all form data
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Additional data from hidden inputs
+            document.querySelectorAll('input[type="hidden"]').forEach(input => {
+                if (input.name && input.value) {
+                    data[input.name] = input.value;
+                }
+            });
+            
+            // Validate form data
+            const validation = Zefaaf.FormValidator.validateRegistrationForm(data);
+            if (!validation.isValid) {
+                // Show first error
+                const firstErrorKey = Object.keys(validation.errors)[0];
+                Zefaaf.UIHelper.showNotification(validation.errors[firstErrorKey], 'error');
+                return;
+            }
+            
+            try {
+                Zefaaf.UIHelper.showLoading('جاري إنشاء حسابك...');
+                
+                // Send registration request
+                const result = await Zefaaf.AuthService.register(data);
+                
+                Zefaaf.UIHelper.hideLoading();
+                Zefaaf.UIHelper.showNotification('تم تسجيل حسابك بنجاح', 'success');
+                
+                // Show success step
+                currentStep = 5;
+                updateStepIndicator();
+                
+            } catch (error) {
+                Zefaaf.UIHelper.hideLoading();
+                Zefaaf.UIHelper.showNotification(error.message || 'فشل إنشاء الحساب', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

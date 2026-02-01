@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تعديل الملف الشخصي - زفاف</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; background: #f8f7ff; }
+        .btn-primary { background: linear-gradient(135deg, #8a2be2 0%, #9d4edd 100%); color: white; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-purple-800">تعديل ملفي الشخصي</h1>
+            <a href="dashboard.html" class="text-gray-600 hover:text-purple-600"><i class="fas fa-times text-xl"></i></a>
+        </div>
+        <form id="profileForm" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">الاسم الكامل</label>
+                <input type="text" id="p_full_name" name="full_name" class="w-full p-3 border rounded-xl" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">المدينة</label>
+                <input type="text" id="p_city" name="city" class="w-full p-3 border rounded-xl">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-gray-700 font-bold mb-2">نبذة عني</label>
+                <textarea id="p_about_me" name="about_me" class="w-full p-3 border rounded-xl h-32"></textarea>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">المستوى التعليمي</label>
+                <select id="p_education" name="education" class="w-full p-3 border rounded-xl">
+                    <option value="بكالوريوس">بكالوريوس</option>
+                    <option value="ماجستير">ماجستير</option>
+                    <option value="دكتوراه">دكتوراه</option>
+                </select>
+            </div>
+            <div class="md:col-span-2 text-left">
+                <button type="submit" class="btn-primary px-8 py-3 rounded-xl font-bold">حفظ التغييرات</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!Zefaaf.AuthService.isLoggedIn()) window.location.href = 'login.html';
+            const { user } = await Zefaaf.AuthService.getProfile();
+            document.getElementById('p_full_name').value = user.full_name;
+            document.getElementById('p_city').value = user.city || '';
+            document.getElementById('p_about_me').value = user.about_me || '';
+            document.getElementById('p_education').value = user.education || '';
+        });
+
+        document.getElementById('profileForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target));
+            try {
+                Zefaaf.UIHelper.showLoading('جاري الحفظ...');
+                const res = await fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) Zefaaf.UIHelper.showNotification('تم التحديث بنجاح', 'success');
+            } catch (err) { Zefaaf.UIHelper.showNotification('فشل التحديث', 'error'); }
+            finally { Zefaaf.UIHelper.hideLoading(); }
+        };
+    </script>
+</body>
+</html>

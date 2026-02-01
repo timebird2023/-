@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - زفاف</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #8a2be2;
+            --primary-light: #9d4edd;
+            --secondary: #ffd700;
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #f8f7ff;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.05);
+            height: 100vh;
+            position: fixed;
+            right: 0;
+            top: 0;
+            transition: transform 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+        
+        .main-content {
+            margin-right: 280px;
+            transition: margin 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                margin-right: 0;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+        }
+        
+        .photo-container {
+            position: relative;
+            overflow: hidden;
+            height: 300px;
+        }
+        
+        .blur-photo {
+            filter: blur(20px);
+            transform: scale(1.1);
+            transition: filter 0.5s ease;
+        }
+        
+        .blur-photo.visible {
+            filter: blur(0);
+        }
+        
+        .photo-lock {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        
+        .photo-lock:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: bold;
+            border: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+            color: #666;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: bold;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .badge-purple {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(157, 78, 221, 0.1) 100%);
+            color: var(--primary);
+        }
+        
+        .badge-green {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(46, 125, 50, 0.1) 100%);
+            color: #2e7d32;
+        }
+        
+        .badge-orange {
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(245, 124, 0, 0.1) 100%);
+            color: #f57c00;
+        }
+        
+        .chat-indicator {
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 50%;
+            position: absolute;
+            top: -3px;
+            left: -3px;
+        }
+        
+        .online-indicator {
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            border: 2px solid white;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlide 0.3s ease;
+        }
+        
+        @keyframes modalSlide {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            color: #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e6e6fa;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar z-50">
+        <!-- Logo -->
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center">
+                    <i class="fas fa-heart text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-purple-700 to-purple-900 bg-clip-text text-transparent">
+                        زفاف
+                    </h1>
+                    <p class="text-xs text-gray-500">لوحة التحكم</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Profile -->
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center space-x-4 space-x-reverse mb-4">
+                <div class="relative">
+                    <img id="userAvatar" src="https://ui-avatars.com/api/?name=محمد+أحمد&background=8a2be2&color=fff&size=64" 
+                         class="w-16 h-16 rounded-full border-4 border-white shadow">
+                    <div class="online-indicator"></div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg" id="userName">محمد أحمد</h3>
+                    <p class="text-gray-600 text-sm" id="userLocation">الرياض، السعودية</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-purple-700" id="userAge">24</div>
+                    <div class="text-gray-600 text-sm">عمرك</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-purple-700">85%</div>
+                    <div class="text-gray-600 text-sm">اكتمال الملف</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation -->
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li>
+                    <a href="dashboard.html" class="flex items-center space-x-3 space-x-reverse p-3 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 font-semibold">
+                        <i class="fas fa-home text-lg"></i>
+                        <span>الرئيسية</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center space-x-3 space-x-reverse p-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-user text-lg"></i>
+                        <span>ملفي الشخصي</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center space-x-3 space-x-reverse p-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-heart text-lg"></i>
+                        <span>المطابقات</span>
+                        <span class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">12</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center space-x-3 space-x-reverse p-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-comments text-lg"></i>
+                        <span>المراسلات</span>
+                        <span class="chat-indicator"></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center space-x-3 space-x-reverse p-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-eye text-lg"></i>
+                        <span>طلبات مشاهدة الصور</span>
+                        <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">3</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="flex items-center space-x-3 space-x-reverse p-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
+                        <i class="fas fa-cog text-lg"></i>
+                        <span>الإعدادات</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        
+        <!-- Quick Stats -->
+        <div class="p-4 border-t border-gray-200">
+            <h4 class="font-bold mb-4 text-gray-700">إحصائيات سريعة</h4>
+            <div class="space-y-3">
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm text-gray-600">مشاهدات ملفك</span>
+                        <span class="text-sm font-bold">1,247</span>
+                    </div>
+                    <div class="h-2 bg-gray-200 rounded-full">
+                        <div class="h-2 bg-green-500 rounded-full" style="width: 85%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm text-gray-600">طلبات المراسلة</span>
+                        <span class="text-sm font-bold">48</span>
+                    </div>
+                    <div class="h-2 bg-gray-200 rounded-full">
+                        <div class="h-2 bg-blue-500 rounded-full" style="width: 60%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logout -->
+        <div class="p-6 border-t border-gray-200 mt-auto">
+            <button id="logoutBtn" 
+                    class="w-full flex items-center justify-center space-x-3 space-x-reverse p-3 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 transition">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>تسجيل الخروج</span>
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Mobile Menu Button -->
+    <button id="mobileMenuBtn" 
+            class="md:hidden fixed top-4 right-4 z-50 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-purple-700">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+    
+    <!-- Main Content -->
+    <main class="main-content min-h-screen">
+        <!-- Top Bar -->
+        <header class="bg-white shadow-sm p-4 sticky top-0 z-40">
+            <div class="flex justify-between items-center">
+                <div class="flex-1">
+                    <!-- Search Bar -->
+                    <div class="relative max-w-md">
+                        <input type="text" 
+                               placeholder="ابحث عن عضو..." 
+                               class="w-full p-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                               id="searchInput">
+                        <button class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6 space-x-reverse">
+                    <!-- Notifications -->
+                    <div class="relative">
+                        <button class="relative p-2 hover:bg-gray-100 rounded-full transition">
+                            <i class="fas fa-bell text-xl text-gray-700"></i>
+                            <span class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full"></span>
+                        </button>
+                    </div>
+                    
+                    <!-- Messages -->
+                    <div class="relative">
+                        <button class="relative p-2 hover:bg-gray-100 rounded-full transition">
+                            <i class="fas fa-envelope text-xl text-gray-700"></i>
+                            <span class="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full"></span>
+                        </button>
+                    </div>
+                    
+                    <!-- Upgrade Button -->
+                    <button class="btn-primary hidden md:inline-flex">
+                        <i class="fas fa-crown ml-2"></i> ترقية العضوية
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Dashboard Content -->
+        <div class="p-4 md:p-6">
+            <!-- Welcome Banner -->
+            <div class="bg-gradient-to-r from-purple-600 to-purple-800 rounded-2xl p-6 text-white mb-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-2">مرحباً بك، <span id="welcomeName">محمد</span>! 👋</h2>
+                        <p class="text-purple-100">لديك 12 مطابقة جديدة. ابدأ استكشافها الآن!</p>
+                    </div>
+                    <div class="mt-4 md:mt-0">
+                        <button id="refreshMatchesBtn" class="bg-white text-purple-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition">
+                            <i class="fas fa-sync-alt ml-2"></i> تحديث المطابقات
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="card p-6 mb-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">أعضاء قد يعجبوك</h3>
+                    <div class="mt-4 md:mt-0">
+                        <button id="filterToggle" 
+                                class="flex items-center text-gray-700 hover:text-purple-700">
+                            <i class="fas fa-filter ml-2"></i> تصفية النتائج
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filter Options -->
+                <div id="filterOptions" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div>
+                            <label class="block text-gray-700 mb-2">العمر</label>
+                            <select class="w-full p-3 border border-gray-300 rounded-lg" id="ageFilter">
+                                <option value="">أي عمر</option>
+                                <option value="18-25">18-25</option>
+                                <option value="26-35">26-35</option>
+                                <option value="36-45">36-45</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">المدينة</label>
+                            <select class="w-full p-3 border border-gray-300 rounded-lg" id="cityFilter">
+                                <option value="">جميع المدن</option>
+                                <option value="الرياض">الرياض</option>
+                                <option value="جدة">جدة</option>
+                                <option value="مكة">مكة</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">الحالة الاجتماعية</label>
+                            <select class="w-full p-3 border border-gray-300 rounded-lg" id="maritalFilter">
+                                <option value="">الجميع</option>
+                                <option value="أعزب/عزباء">أعزب/عزباء</option>
+                                <option value="مطلق/مطلقة">مطلق/مطلقة</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">مستوى التدين</label>
+                            <select class="w-full p-3 border border-gray-300 rounded-lg" id="religionFilter">
+                                <option value="">الجميع</option>
+                                <option value="ملتزم جداً">ملتزم جداً</option>
+                                <option value="ملتزم">ملتزم</option>
+                                <option value="معتدل">معتدل</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button id="resetFiltersBtn" class="btn-secondary mr-4">إعادة تعيين</button>
+                        <button id="applyFiltersBtn" class="btn-primary">تطبيق الفلاتر</button>
+                    </div>
+                </div>
+                
+                <!-- Match Percentage Filter -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-4">نسبة المطابقة</label>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <span class="text-sm text-gray-600">0%</span>
+                        <input type="range" min="0" max="100" value="70" 
+                               class="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-600"
+                               id="matchPercentage">
+                        <span class="text-sm text-gray-600">100%</span>
+                        <span class="text-purple-700 font-bold" id="matchPercentageValue">70%+</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Members Grid -->
+            <div id="membersGrid">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="membersContainer">
+                    <!-- Member cards will be loaded here -->
+                </div>
+                
+                <!-- Loading State -->
+                <div id="loadingState" class="text-center py-12">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">جاري تحميل الأعضاء...</p>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state hidden">
+                    <i class="fas fa-users"></i>
+                    <h4 class="text-xl font-bold text-gray-700 mb-2">لا توجد نتائج</h4>
+                    <p class="text-gray-600 mb-6">حاول تعديل عوامل البحث أو الفلاتر للحصول على نتائج</p>
+                    <button id="modifySearchBtn" class="btn-primary">تعديل البحث</button>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div id="pagination" class="flex justify-center mt-12 hidden">
+                <nav class="flex items-center space-x-2 space-x-reverse">
+                    <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-purple-600 text-white">1</button>
+                    <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">2</button>
+                    <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">3</button>
+                    <span class="px-2">...</span>
+                    <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">10</button>
+                    <button class="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                </nav>
+            </div>
+        </div>
+        
+        <!-- Upload Photo Button (Fixed) -->
+        <button id="uploadPhotoBtn" 
+                class="fixed bottom-6 left-6 w-14 h-14 bg-gradient-to-br from-purple-600 to-purple-800 text-white rounded-full shadow-xl flex items-center justify-center hover:shadow-2xl transition-all z-40">
+            <i class="fas fa-camera text-xl"></i>
+        </button>
+    </main>
+    
+    <!-- Modals -->
+    
+    <!-- Request View Modal -->
+    <div id="requestViewModal" class="modal">
+        <div class="modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">طلب مشاهدة الصورة</h3>
+                    <button class="text-gray-500 hover:text-gray-700 close-modal" data-modal="requestViewModal">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-gray-600 mb-4">
+                        الصور محمية للحفاظ على الخصوصية. يجب عليك طلب الإذن لمشاهدة الصورة.
+                    </p>
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-purple-600 ml-3"></i>
+                            <p class="text-purple-800 text-sm">
+                                سيتم إرسال طلبك إلى صاحب الصورة. إذا وافق، يمكنك مشاهدة الصورة لمدة 24 ساعة.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 space-x-reverse">
+                    <button class="btn-secondary flex-1 close-modal" data-modal="requestViewModal">
+                        إلغاء
+                    </button>
+                    <button id="sendViewRequestBtn" class="btn-primary flex-1">
+                        <i class="fas fa-paper-plane ml-2"></i> إرسال الطلب
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat Request Modal -->
+    <div id="chatModal" class="modal">
+        <div class="modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">مراسلة بوجود ولي</h3>
+                    <button class="text-gray-500 hover:text-gray-700 close-modal" data-modal="chatModal">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-gray-600 mb-4">
+                        وفقًا للضوابط الشرعية، يجب أن تكون المراسلة بوجود ولي أمر الطرفين.
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">اسم ولي أمرك</label>
+                            <input type="text" class="input-field" id="guardianName" placeholder="اسم ولي أمرك الكامل">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">رقم هاتف الولي</label>
+                            <input type="tel" class="input-field" id="guardianPhone" placeholder="رقم هاتف ولي أمرك">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">صلة القرابة</label>
+                            <select class="input-field" id="guardianRelationship">
+                                <option value="">اختر صلة القرابة</option>
+                                <option value="أب">أب</option>
+                                <option value="أخ">أخ</option>
+                                <option value="عم">عم</option>
+                                <option value="خال">خال</option>
+                                <option value="ابن عم">ابن عم</option>
+                            </select>
+                        </div>
+                        
+                        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                            <div class="flex items-start">
+                                <i class="fas fa-exclamation-triangle text-yellow-600 mt-1 ml-3"></i>
+                                <p class="text-yellow-800 text-sm">
+                                    سيتم التواصل مع ولي أمرك للتحقق قبل بدء المراسلة. هذا إجراء إلزامي للتأكد من الالتزام بالضوابط الشرعية.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 space-x-reverse">
+                    <button class="btn-secondary flex-1 close-modal" data-modal="chatModal">
+                        إلغاء
+                    </button>
+                    <button id="startChatBtn" class="btn-primary flex-1">
+                        <i class="fas fa-comments ml-2"></i> بدء المراسلة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upload Photo Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-800">رفع صورة جديدة</h3>
+                    <button class="text-gray-500 hover:text-gray-700 close-modal" data-modal="uploadModal">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div id="uploadSteps">
+                    <!-- Step 1: Upload -->
+                    <div id="uploadStep1">
+                        <div class="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center mb-6">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                            <h4 class="font-bold text-gray-700 mb-2">اسحب وأفلت الصورة هنا</h4>
+                            <p class="text-gray-600 mb-4">أو انقر لاختيار صورة</p>
+                            <input type="file" id="photoInput" accept="image/*" class="hidden">
+                            <button id="choosePhotoBtn" 
+                                    class="btn-primary">
+                                <i class="fas fa-folder-open ml-2"></i> اختيار صورة
+                            </button>
+                            <p class="text-sm text-gray-500 mt-4">الحد الأقصى: 5MB. الصور المسموحة: JPG, PNG</p>
+                        </div>
+                        
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-6">
+                            <div class="flex items-start">
+                                <i class="fas fa-shield-alt text-purple-600 mt-1 ml-3"></i>
+                                <div>
+                                    <h5 class="font-bold text-purple-800 mb-1">مراقبة الذكاء الاصطناعي</h5>
+                                    <p class="text-purple-700 text-sm">
+                                        جميع الصور تخضع لفحص تلقائي للتأكد من الالتزام بمعايير الحشمة والستر الإسلامي.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: Modesty Check -->
+                    <div id="uploadStep2" class="hidden">
+                        <div class="text-center mb-6">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <h4 class="font-bold text-gray-700 mb-2">جاري فحص الصورة...</h4>
+                            <p class="text-gray-600">نقوم بفحص الصورة للتأكد من الالتزام بالمعايير الإسلامية</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Result -->
+                    <div id="uploadStep3" class="hidden">
+                        <div class="text-center mb-6">
+                            <div id="uploadResultIcon" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-check text-3xl text-white"></i>
+                            </div>
+                            <h4 id="uploadResultTitle" class="font-bold text-xl mb-2">الصورة مقبولة</h4>
+                            <p id="uploadResultMessage" class="text-gray-600 mb-6">تمت الموافقة على الصورة ورفعها بنجاح</p>
+                            
+                            <div class="bg-gray-100 rounded-xl p-4 mb-6">
+                                <img id="uploadedPreview" class="w-48 h-48 object-cover rounded-lg mx-auto">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 space-x-reverse">
+                    <button id="uploadCancelBtn" class="btn-secondary flex-1 close-modal" data-modal="uploadModal">
+                        إلغاء
+                    </button>
+                    <button id="uploadNextBtn" class="btn-primary flex-1">
+                        التالي
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="js/app.js"></script>
+    <script>
+        // State variables
+        let currentUserId = null;
+        let currentPhotoId = null;
+        let currentMemberId = null;
+        let uploadStep = 1;
+        let currentFilters = {};
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initDashboard();
+        });
+        
+        async function initDashboard() {
+            // التحقق من تسجيل الدخول
+            if (!Zefaaf.AuthService.isLoggedIn()) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            try {
+                // Load user profile
+                const user = await loadUserProfile();
+                if (!user) {
+                    await Zefaaf.AuthService.logout();
+                    return;
+                }
+                
+                // Initialize event listeners
+                initEventListeners();
+                
+                // Load members
+                await loadMembers();
+                
+                // Update UI with user data
+                updateUserUI(user);
+                
+            } catch (error) {
+                console.error('Dashboard init error:', error);
+                Zefaaf.UIHelper.showNotification('حدث خطأ في تحميل البيانات', 'error');
+            }
+        }
+        
+        // Load user profile
+        async function loadUserProfile() {
+            try {
+                const profile = await Zefaaf.AuthService.getProfile();
+                if (!profile || !profile.user) {
+                    throw new Error('فشل تحميل بيانات المستخدم');
+                }
+                
+                currentUserId = profile.user.id;
+                return profile.user;
+                
+            } catch (error) {
+                console.error('Load profile error:', error);
+                Zefaaf.UIHelper.showNotification('فشل تحميل الملف الشخصي', 'error');
+                return null;
+            }
+        }
+        
+        // Update user UI
+        function updateUserUI(user) {
+            // Update sidebar
+            const userNameElement = document.getElementById('userName');
+            const userLocationElement = document.getElementById('userLocation');
+            const welcomeNameElement = document.getElementById('welcomeName');
+            const userAgeElement = document.getElementById('userAge');
+            const userAvatar = document.getElementById('userAvatar');
+            
+            if (userNameElement) userNameElement.textContent = user.full_name;
+            if (userLocationElement) userLocationElement.textContent = `${user.city || ''}، ${user.country || ''}`;
+            if (welcomeNameElement) welcomeNameElement.textContent = user.full_name.split(' ')[0] || user.full_name;
+            
+            if (userAgeElement && user.birth_date) {
+                const age = Zefaaf.UIHelper.calculateAge(user.birth_date);
+                userAgeElement.textContent = age || '';
+            }
+            
+            if (userAvatar && user.full_name) {
+                userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=8a2be2&color=fff&size=64`;
+            }
+        }
+        
+        // Load members from API
+        async function loadMembers() {
+            const loadingState = document.getElementById('loadingState');
+            const emptyState = document.getElementById('emptyState');
+            const membersContainer = document.getElementById('membersContainer');
+            const pagination = document.getElementById('pagination');
+            
+            if (!membersContainer) return;
+            
+            try {
+                // Show loading state
+                loadingState?.classList.remove('hidden');
+                emptyState?.classList.add('hidden');
+                membersContainer.innerHTML = '';
+                
+                // Get search params from StorageManager
+                const searchParams = Zefaaf.StorageManager.getSearchParams();
+                
+                // Apply current filters
+                const filters = { ...searchParams, ...currentFilters };
+                
+                // Call match API
+                const result = await Zefaaf.MatchService.findMatches({
+                    user_id: currentUserId,
+                    search_text: '',
+                    ...filters
+                });
+                
+                // Hide loading state
+                loadingState?.classList.add('hidden');
+                
+                if (result.matches && result.matches.length > 0) {
+                    // Display members
+                    result.matches.forEach(member => {
+                        const memberCard = createMemberCard(member);
+                        membersContainer.appendChild(memberCard);
+                    });
+                    
+                    // Show pagination if needed
+                    if (pagination && result.matches.length >= 20) {
+                        pagination.classList.remove('hidden');
+                    }
+                } else {
+                    // Show empty state
+                    emptyState?.classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                console.error('Error loading members:', error);
+                loadingState?.classList.add('hidden');
+                emptyState?.classList.remove('hidden');
+                
+                // Display sample data for demo
+                displaySampleMembers();
+            }
+        }
+        
+        // Display sample members for demo
+        function displaySampleMembers() {
+            const membersContainer = document.getElementById('membersContainer');
+            const emptyState = document.getElementById('emptyState');
+            const pagination = document.getElementById('pagination');
+            
+            if (!membersContainer) return;
+            
+            const sampleMembers = [
+                {
+                    id: '1',
+                    full_name: 'فاطمة أحمد',
+                    age: 26,
+                    country: 'السعودية',
+                    city: 'الرياض',
+                    marital_status: 'أعزب/عزباء',
+                    about_me: 'طبيبة متخصصة، أهتم بالقرآن والعمل الخيري، أبحث عن زوج صالح يكون سندًا لي في الدنيا والآخرة.',
+                    prayer_level: 'دائمًا في وقتها',
+                    hijab_status: 'حجاب كامل',
+                    photos: [
+                        {
+                            id: 'photo1',
+                            url: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                            is_profile: true,
+                            is_approved: false,
+                            view_count: 124,
+                            requested_views: 45
+                        }
+                    ]
+                },
+                {
+                    id: '2',
+                    full_name: 'سارة محمد',
+                    age: 28,
+                    country: 'مصر',
+                    city: 'القاهرة',
+                    marital_status: 'أعزب/عزباء',
+                    about_me: 'معلمة قرآن، أحب القراءة والرسم، أبحث عن شريك يحترم العلم والدين ويكون عونًا على طاعة الله.',
+                    prayer_level: 'دائمًا في وقتها',
+                    hijab_status: 'نقاب',
+                    photos: [
+                        {
+                            id: 'photo2',
+                            url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                            is_profile: true,
+                            is_approved: false,
+                            view_count: 98,
+                            requested_views: 32
+                        }
+                    ]
+                },
+                {
+                    id: '3',
+                    full_name: 'عمر خالد',
+                    age: 32,
+                    country: 'الإمارات',
+                    city: 'دبي',
+                    marital_status: 'مطلق/مطلقة',
+                    about_me: 'مهندس معماري، أهتم بالأعمال الخيرية وحفظ القرآن، أبحث عن زوجة صالحة تكون لي سكنًا ومودة.',
+                    prayer_level: 'غالبًا في وقتها',
+                    beard_status: 'لحية كاملة',
+                    photos: [
+                        {
+                            id: 'photo3',
+                            url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                            is_profile: true,
+                            is_approved: false,
+                            view_count: 156,
+                            requested_views: 67
+                        }
+                    ]
+                }
+            ];
+            
+            sampleMembers.forEach(member => {
+                const memberCard = createMemberCard(member);
+                membersContainer.appendChild(memberCard);
+            });
+            
+            if (pagination) pagination.classList.remove('hidden');
+            if (emptyState) emptyState.classList.add('hidden');
+        }
+        
+        // Create member card element
+        function createMemberCard(member) {
+            const profilePhoto = member.photos?.find(p => p.is_profile) || member.photos?.[0];
+            const photoUrl = profilePhoto?.url || 'https://via.placeholder.com/400x300/e6e6fa/8a2be2?text=صورة+الشخص';
+            const isPhotoApproved = profilePhoto?.is_approved || false;
+            const photoId = profilePhoto?.id;
+            
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="photo-container">
+                    <img src="${photoUrl}" 
+                         class="w-full h-full object-cover blur-photo ${isPhotoApproved ? 'visible' : ''}" 
+                         alt="${member.full_name}"
+                         data-photo-id="${photoId}"
+                         data-member-id="${member.id}">
+                    
+                    ${!isPhotoApproved ? `
+                        <div class="photo-lock">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                    ` : ''}
+                    
+                    ${isPhotoApproved ? `
+                        <div class="absolute top-4 right-4">
+                            <span class="badge badge-green">
+                                <i class="fas fa-check ml-1"></i> صورة معتمدة
+                            </span>
+                        </div>
+                    ` : `
+                        <div class="absolute top-4 right-4">
+                            <span class="badge badge-orange">
+                                <i class="fas fa-lock ml-1"></i> مقفلة
+                            </span>
+                        </div>
+                    `}
+                </div>
+                
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-xl font-bold text-gray-800">${member.full_name}</h4>
+                            <p class="text-gray-600">
+                                ${member.age || ''} سنة، ${member.city || ''}، ${member.country || ''}
+                        </p>
+                    </div>
+                    <span class="badge badge-purple">
+                        <i class="fas fa-percentage ml-1"></i> ${Math.floor(Math.random() * 20) + 80}% مطابقة
+                    </span>
+                </div>
+                
+                <p class="text-gray-700 mb-4 line-clamp-2">${member.about_me || ''}</p>
+                
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <span class="badge badge-purple">
+                        <i class="fas fa-heart ml-1"></i> ${member.marital_status || ''}
+                    </span>
+                    <span class="badge badge-purple">
+                        <i class="fas fa-pray ml-1"></i> ${member.prayer_level || ''}
+                    </span>
+                    ${member.hijab_status ? `
+                        <span class="badge badge-purple">
+                            <i class="fas fa-user-ninja ml-1"></i> ${member.hijab_status}
+                        </span>
+                    ` : ''}
+                    ${member.beard_status ? `
+                        <span class="badge badge-purple">
+                            <i class="fas fa-user ml-1"></i> ${member.beard_status}
+                        </span>
+                    ` : ''}
+                </div>
+                
+                <div class="flex space-x-3 space-x-reverse">
+                    <button class="btn-primary flex-1 chat-btn">
+                        <i class="fas fa-comments ml-2"></i> مراسلة بوجود ولي
+                    </button>
+                    <button class="w-12 h-12 flex items-center justify-center bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition like-btn">
+                        <i class="far fa-heart text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Add event listeners
+        const lockElement = card.querySelector('.photo-lock');
+        const chatBtn = card.querySelector('.chat-btn');
+        const likeBtn = card.querySelector('.like-btn');
+        
+        if (lockElement && !isPhotoApproved) {
+            lockElement.addEventListener('click', () => requestViewPhoto(photoId, member.id));
+        }
+        
+        if (chatBtn) {
+            chatBtn.addEventListener('click', () => requestHalalChat(member.id));
+        }
+        
+        if (likeBtn) {
+            likeBtn.addEventListener('click', function() {
+                toggleLike(this);
+            });
+        }
+        
+        return card;
+    }
+    
+    // Request to view photo
+    function requestViewPhoto(photoId, memberId) {
+        if (!photoId) {
+            Zefaaf.UIHelper.showNotification('لا توجد صورة متاحة للمشاهدة', 'warning');
+            return;
+        }
+        
+        currentPhotoId = photoId;
+        currentMemberId = memberId;
+        openModal('requestViewModal');
+    }
+    
+    // Send view request
+    async function sendViewRequest() {
+        if (!currentPhotoId) {
+            Zefaaf.UIHelper.showNotification('لم يتم تحديد صورة', 'error');
+            return;
+        }
+        
+        try {
+            Zefaaf.UIHelper.showLoading('جاري إرسال طلب المشاهدة...');
+            
+            await Zefaaf.PhotoService.requestView(currentPhotoId);
+            
+            Zefaaf.UIHelper.hideLoading();
+            Zefaaf.UIHelper.showNotification('تم إرسال طلب مشاهدة الصورة بنجاح', 'success');
+            
+            closeModal('requestViewModal');
+            
+            // Update UI
+            const lockElement = document.querySelector(`.photo-lock[data-photo-id="${currentPhotoId}"]`);
+            if (lockElement) {
+                lockElement.innerHTML = '<i class="fas fa-clock"></i>';
+                lockElement.style.cursor = 'default';
+                lockElement.style.background = 'rgba(0, 0, 0, 0.5)';
+                lockElement.onclick = null;
+            }
+            
+        } catch (error) {
+            Zefaaf.UIHelper.hideLoading();
+            Zefaaf.UIHelper.showNotification(error.message || 'فشل إرسال الطلب', 'error');
+        }
+    }
+    
+    // Request halal chat
+    function requestHalalChat(memberId) {
+        currentMemberId = memberId;
+        openModal('chatModal');
+    }
+    
+    // Start halal chat
+    async function startHalalChat() {
+        const guardianName = document.getElementById('guardianName');
+        const guardianPhone = document.getElementById('guardianPhone');
+        const relationship = document.getElementById('guardianRelationship');
+        
+        if (!guardianName?.value || !guardianPhone?.value || !relationship?.value) {
+            Zefaaf.UIHelper.showNotification('يرجى ملء جميع بيانات ولي الأمر', 'warning');
+            return;
+        }
+        
+        try {
+            Zefaaf.UIHelper.showLoading('جاري إنشاء محادثة شرعية...');
+            
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            Zefaaf.UIHelper.hideLoading();
+            Zefaaf.UIHelper.showNotification('تم إرسال طلب المراسلة. سيتم التواصل مع ولي أمرك للتحقق.', 'success');
+            
+            closeModal('chatModal');
+            
+        } catch (error) {
+            Zefaaf.UIHelper.hideLoading();
+            Zefaaf.UIHelper.showNotification('حدث خطأ في إنشاء المحادثة', 'error');
+        }
+    }
+    
+    // Toggle like button
+    function toggleLike(button) {
+        const icon = button.querySelector('i');
+        
+        if (icon.classList.contains('far')) {
+            icon.classList.remove('far');
+            icon.classList.add('fas', 'text-red-500');
+            button.classList.remove('bg-gray-200');
+            button.classList.add('bg-red-100');
+            Zefaaf.UIHelper.showNotification('تم الإعجاب بالعضو', 'success');
+        } else {
+            icon.classList.remove('fas', 'text-red-500');
+            icon.classList.add('far');
+            button.classList.remove('bg-red-100');
+            button.classList.add('bg-gray-200');
+            Zefaaf.UIHelper.showNotification('تم إلغاء الإعجاب', 'info');
+        }
+    }
+    
+    // Upload photo
+    async function uploadPhoto(file, isProfile = false) {
+        try {
+            Zefaaf.UIHelper.showLoading('جاري فحص الصورة...', {
+                subMessage: 'يتم التحقق من الالتزام بالمعايير الإسلامية'
+            });
+            
+            const result = await Zefaaf.PhotoService.uploadPhoto(file, isProfile);
+            
+            Zefaaf.UIHelper.hideLoading();
+            Zefaaf.UIHelper.showNotification('تم رفع الصورة بنجاح', 'success');
+            
+            return result;
+            
+        } catch (error) {
+            Zefaaf.UIHelper.hideLoading();
+            throw error;
+        }
+    }
+    
+    // Process photo upload
+    async function processUpload() {
+        const fileInput = document.getElementById('photoInput');
+        const file = fileInput.files[0];
+        
+        if (!file && uploadStep === 1) {
+            Zefaaf.UIHelper.showNotification('يرجى اختيار صورة أولاً', 'warning');
+            return;
+        }
+        
+        // Validate image file
+        const validation = Zefaaf.ImageHelper.validateImageFile(file);
+        if (!validation.isValid) {
+            Zefaaf.UIHelper.showNotification(validation.error, 'error');
+            return;
+        }
+        
+        if (uploadStep === 1) {
+            // Move to step 2
+            document.getElementById('uploadStep1').classList.add('hidden');
+            document.getElementById('uploadStep2').classList.remove('hidden');
+            document.getElementById('uploadNextBtn').disabled = true;
+            document.getElementById('uploadNextBtn').innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i> جاري الفحص...';
+            
+            uploadStep = 2;
+            
+            try {
+                // Upload photo
+                const result = await uploadPhoto(file, false);
+                
+                // Move to step 3
+                document.getElementById('uploadStep2').classList.add('hidden');
+                document.getElementById('uploadStep3').classList.remove('hidden');
+                
+                const resultIcon = document.getElementById('uploadResultIcon');
+                const resultTitle = document.getElementById('uploadResultTitle');
+                const resultMessage = document.getElementById('uploadResultMessage');
+                const previewImg = document.getElementById('uploadedPreview');
+                
+                if (result.photo?.url) {
+                    resultIcon.className = 'w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-green-500';
+                    resultIcon.innerHTML = '<i class="fas fa-check text-3xl text-white"></i>';
+                    resultTitle.textContent = 'الصورة مقبولة';
+                    resultMessage.textContent = 'تمت الموافقة على الصورة ورفعها بنجاح';
+                    
+                    previewImg.src = result.photo.url;
+                    previewImg.style.display = 'block';
+                } else {
+                    throw new Error('فشل رفع الصورة');
+                }
+                
+                document.getElementById('uploadNextBtn').textContent = 'تم';
+                document.getElementById('uploadNextBtn').onclick = function() {
+                    closeModal('uploadModal');
+                    resetUploadModal();
+                };
+                document.getElementById('uploadCancelBtn').style.display = 'none';
+                
+                uploadStep = 3;
+                
+            } catch (error) {
+                document.getElementById('uploadStep2').classList.add('hidden');
+                document.getElementById('uploadStep3').classList.remove('hidden');
+                
+                const resultIcon = document.getElementById('uploadResultIcon');
+                const resultTitle = document.getElementById('uploadResultTitle');
+                const resultMessage = document.getElementById('uploadResultMessage');
+                const previewImg = document.getElementById('uploadedPreview');
+                
+                resultIcon.className = 'w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-500';
+                resultIcon.innerHTML = '<i class="fas fa-times text-3xl text-white"></i>';
+                resultTitle.textContent = 'رفض الصورة';
+                resultMessage.textContent = error.message || 'الصورة لا تلتزم بمعايير الستر الإسلامي';
+                previewImg.style.display = 'none';
+                
+                document.getElementById('uploadNextBtn').textContent = 'إعادة المحاولة';
+                document.getElementById('uploadNextBtn').onclick = function() {
+                    document.getElementById('uploadStep3').classList.add('hidden');
+                    document.getElementById('uploadStep1').classList.remove('hidden');
+                    uploadStep = 1;
+                    document.getElementById('uploadNextBtn').innerHTML = 'التالي';
+                    document.getElementById('uploadNextBtn').onclick = processUpload;
+                    document.getElementById('uploadCancelBtn').style.display = 'block';
+                };
+            }
+        }
+    }
+    
+    // Reset upload modal
+    function resetUploadModal() {
+        uploadStep = 1;
+        document.getElementById('uploadStep1').classList.remove('hidden');
+        document.getElementById('uploadStep2').classList.add('hidden');
+        document.getElementById('uploadStep3').classList.add('hidden');
+        document.getElementById('uploadNextBtn').disabled = false;
+        document.getElementById('uploadNextBtn').innerHTML = 'التالي';
+        document.getElementById('uploadNextBtn').onclick = processUpload;
+        document.getElementById('uploadCancelBtn').style.display = 'block';
+        document.getElementById('photoInput').value = '';
+        
+        // Reset preview
+        const previewArea = document.querySelector('#uploadStep1 .border-dashed');
+        if (previewArea) {
+            previewArea.innerHTML = `
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                <h4 class="font-bold text-gray-700 mb-2">اسحب وأفلت الصورة هنا</h4>
+                <p class="text-gray-600 mb-4">أو انقر لاختيار صورة</p>
+                <button id="choosePhotoBtn" 
+                        class="btn-primary">
+                    <i class="fas fa-folder-open ml-2"></i> اختيار صورة
+                </button>
+                <p class="text-sm text-gray-500 mt-4">الحد الأقصى: 5MB. الصور المسموحة: JPG, PNG</p>
+            `;
+            
+            // Re-attach event listener
+            document.getElementById('choosePhotoBtn')?.addEventListener('click', () => {
+                document.getElementById('photoInput').click();
+            });
+        }
+    }
+    
+    // Modal functions
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    // Initialize event listeners
+    function initEventListeners() {
+        // Mobile menu toggle
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (mobileMenuBtn && sidebar) {
+            mobileMenuBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('open');
+            });
+        }
+        
+        // Filter toggle
+        const filterToggle = document.getElementById('filterToggle');
+        const filterOptions = document.getElementById('filterOptions');
+        
+        if (filterToggle && filterOptions) {
+            filterToggle.addEventListener('click', function() {
+                filterOptions.classList.toggle('hidden');
+            });
+        }
+        
+        // Search input
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            const debouncedSearch = Zefaaf.UIHelper.debounce(performSearch, 500);
+            searchInput.addEventListener('input', function(e) {
+                debouncedSearch(e.target.value);
+            });
+        }
+        
+        // Match percentage slider
+        const matchPercentageSlider = document.getElementById('matchPercentage');
+        const matchPercentageValue = document.getElementById('matchPercentageValue');
+        
+        if (matchPercentageSlider && matchPercentageValue) {
+            matchPercentageSlider.addEventListener('input', function() {
+                matchPercentageValue.textContent = `${this.value}%+`;
+                currentFilters.match_percentage = parseInt(this.value);
+            });
+        }
+        
+        // Apply filters button
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', async function() {
+                // Collect filter values
+                currentFilters = {
+                    age_range: document.getElementById('ageFilter')?.value,
+                    city: document.getElementById('cityFilter')?.value,
+                    marital_status: document.getElementById('maritalFilter')?.value,
+                    religion_level: document.getElementById('religionFilter')?.value,
+                    match_percentage: parseInt(document.getElementById('matchPercentage')?.value || 70)
+                };
+                
+                // Load members with filters
+                await loadMembers();
+                
+                // Close filter options
+                filterOptions?.classList.add('hidden');
+            });
+        }
+        
+        // Reset filters button
+        const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', function() {
+                // Reset filter inputs
+                document.getElementById('ageFilter').value = '';
+                document.getElementById('cityFilter').value = '';
+                document.getElementById('maritalFilter').value = '';
+                document.getElementById('religionFilter').value = '';
+                document.getElementById('matchPercentage').value = 70;
+                document.getElementById('matchPercentageValue').textContent = '70%+';
+                
+                // Clear filters
+                currentFilters = {};
+                
+                // Reload members
+                loadMembers();
+            });
+        }
+        
+        // Refresh matches button
+        const refreshMatchesBtn = document.getElementById('refreshMatchesBtn');
+        if (refreshMatchesBtn) {
+            refreshMatchesBtn.addEventListener('click', async function() {
+                await loadMembers();
+                Zefaaf.UIHelper.showNotification('تم تحديث المطابقات', 'success');
+            });
+        }
+        
+        // Modify search button
+        const modifySearchBtn = document.getElementById('modifySearchBtn');
+        if (modifySearchBtn) {
+            modifySearchBtn.addEventListener('click', function() {
+                filterOptions?.classList.remove('hidden');
+                filterOptions?.scrollIntoView({ behavior: 'smooth' });
+            });
+        }
+        
+        // Upload photo button
+        const uploadPhotoBtn = document.getElementById('uploadPhotoBtn');
+        if (uploadPhotoBtn) {
+            uploadPhotoBtn.addEventListener('click', function() {
+                openModal('uploadModal');
+            });
+        }
+        
+        // Choose photo button
+        const choosePhotoBtn = document.getElementById('choosePhotoBtn');
+        if (choosePhotoBtn) {
+            choosePhotoBtn.addEventListener('click', () => {
+                document.getElementById('photoInput').click();
+            });
+        }
+        
+        // Photo input change
+        const photoInput = document.getElementById('photoInput');
+        if (photoInput) {
+            photoInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    const file = this.files[0];
+                    
+                    // Create preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const previewArea = document.querySelector('#uploadStep1 .border-dashed');
+                        if (previewArea) {
+                            previewArea.innerHTML = `
+                                <img src="${e.target.result}" class="w-48 h-48 object-cover rounded-lg mx-auto mb-4">
+                                <p class="text-gray-600">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>
+                                <button id="choosePhotoBtn" 
+                                        class="btn-primary mt-4">
+                                    <i class="fas fa-sync-alt ml-2"></i> تغيير الصورة
+                                </button>
+                            `;
+                            
+                            // Re-attach event listener
+                            document.getElementById('choosePhotoBtn')?.addEventListener('click', () => {
+                                document.getElementById('photoInput').click();
+                            });
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // Upload next button
+        const uploadNextBtn = document.getElementById('uploadNextBtn');
+        if (uploadNextBtn) {
+            uploadNextBtn.addEventListener('click', processUpload);
+        }
+        
+        // Send view request button
+        const sendViewRequestBtn = document.getElementById('sendViewRequestBtn');
+        if (sendViewRequestBtn) {
+            sendViewRequestBtn.addEventListener('click', sendViewRequest);
+        }
+        
+        // Start chat button
+        const startChatBtn = document.getElementById('startChatBtn');
+        if (startChatBtn) {
+            startChatBtn.addEventListener('click', startHalalChat);
+        }
+        
+        // Close modal buttons
+        document.querySelectorAll('.close-modal').forEach(button => {
+            button.addEventListener('click', function() {
+                const modalId = this.getAttribute('data-modal');
+                closeModal(modalId);
+            });
+        });
+        
+        // Close modals when clicking outside
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        });
+        
+        // Logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                await handleLogout();
+            });
+        }
+    }
+    
+    // Perform search
+    async function performSearch(query) {
+        // Store search query
+        Zefaaf.StorageManager.setSearchParams({ search_text: query });
+        
+        // Reload members with new search
+        await loadMembers();
+    }
+    
+    // Handle logout
+    async function handleLogout() {
+        const confirmed = await Zefaaf.UIHelper.confirmDialog(
+            'هل أنت متأكد من تسجيل الخروج؟',
+            'تسجيل الخروج',
+            'إلغاء'
+        );
+        
+        if (confirmed) {
+            Zefaaf.UIHelper.showLoading('جاري تسجيل الخروج...');
+            await Zefaaf.AuthService.logout();
+        }
+    }
+    
+    // Handle click outside sidebar on mobile
+    document.addEventListener('click', function(event) {
+        const sidebar = document.querySelector('.sidebar');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        
+        if (window.innerWidth <= 768 && sidebar && mobileMenuBtn) {
+            if (sidebar.classList.contains('open') && 
+                !sidebar.contains(event.target) && 
+                !mobileMenuBtn.contains(event.target)) {
+                sidebar.classList.remove('open');
+            }
+        }
+    });
+    
+    // Listen for refresh event
+    Zefaaf.EventBus.on('refresh-matches', async () => {
+        await loadMembers();
+    });
+    </script>
+</body>
+</html>

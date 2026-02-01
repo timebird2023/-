@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - زفاف</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #8a2be2;
+            --primary-light: #9d4edd;
+            --secondary: #ffd700;
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #f8f7ff 0%, #e6e6fa 100%);
+            min-height: 100vh;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(138, 43, 226, 0.15);
+            overflow: hidden;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary) 0%, #6a1b9a 100%);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: bold;
+            border: none;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(138, 43, 226, 0.3);
+        }
+        
+        .btn-google {
+            background: white;
+            color: #333;
+            border: 2px solid #e0e0e0;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn-google:hover {
+            background: #f8f9fa;
+            border-color: #d0d0d0;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e6e6fa;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.1);
+        }
+        
+        .separator {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: #666;
+        }
+        
+        .separator::before,
+        .separator::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .separator:not(:empty)::before {
+            margin-left: 1em;
+        }
+        
+        .separator:not(:empty)::after {
+            margin-right: 1em;
+        }
+        
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #d8bfd8;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .checkbox-custom.checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .checkbox-custom.checked::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        
+        .floating-label {
+            position: absolute;
+            right: 20px;
+            top: 18px;
+            color: #999;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .floating-label.active {
+            top: -10px;
+            right: 15px;
+            font-size: 12px;
+            color: var(--primary);
+            background: white;
+            padding: 0 8px;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .islamic-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239d4edd' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="login-container w-full max-w-4xl">
+        <div class="flex flex-col md:flex-row">
+            <!-- الجانب الأيسر - صورة وشعار -->
+            <div class="gradient-bg text-white p-8 md:p-12 md:w-2/5 relative overflow-hidden islamic-pattern">
+                <div class="absolute top-0 left-0 w-full h-full opacity-10"></div>
+                
+                <div class="relative z-10">
+                    <!-- العودة للرئيسية -->
+                    <a href="index.html" class="inline-flex items-center text-white/80 hover:text-white mb-8">
+                        <i class="fas fa-arrow-right ml-2"></i>
+                        <span>العودة للرئيسية</span>
+                    </a>
+                    
+                    <!-- الشعار -->
+                    <div class="flex items-center space-x-3 space-x-reverse mb-8">
+                        <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-heart text-white text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold">زفاف</h1>
+                            <p class="text-white/80">Zefaaf.net</p>
+                        </div>
+                    </div>
+                    
+                    <!-- نص ترحيبي -->
+                    <div class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">مرحباً بعودتك!</h2>
+                        <p class="text-white/90 leading-relaxed">
+                            سجل دخولك لتستكمل رحلة البحث عن شريك حياتك. أكثر من 10,000 عضو وجدوا شريك حياتهم عبر منصتنا.
+                        </p>
+                    </div>
+                    
+                    <!-- إحصائيات -->
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold mb-1">10K+</div>
+                            <div class="text-sm text-white/80">أعضاء مسجلين</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold mb-1">2K+</div>
+                            <div class="text-sm text-white/80">زواج ناجح</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold mb-1">50+</div>
+                            <div class="text-sm text-white/80">دولة</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold mb-1">24/7</div>
+                            <div class="text-sm text-white/80">دعم فني</div>
+                        </div>
+                    </div>
+                    
+                    <!-- اقتباس -->
+                    <div class="mt-12 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+                        <p class="text-white/90 italic">
+                            <i class="fas fa-quote-right ml-2 text-white/60"></i>
+                            "ومن آياته أن خلق لكم من أنفسكم أزواجاً لتسكنوا إليها وجعل بينكم مودة ورحمة"
+                            <span class="block text-sm mt-2 text-white/70">الروم: 21</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- الجانب الأيمن - نموذج التسجيل -->
+            <div class="p-8 md:p-12 md:w-3/5">
+                <!-- رسائل التنبيه -->
+                <div id="alertMessage" class="hidden mb-6 p-4 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle ml-3 text-lg"></i>
+                        <span id="alertText"></span>
+                    </div>
+                </div>
+                
+                <div class="max-w-md mx-auto">
+                    <!-- عنوان الصفحة -->
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-2">تسجيل الدخول</h3>
+                        <p class="text-gray-600">
+                            أدخل بريدك الإلكتروني وكلمة المرور للوصول إلى حسابك
+                        </p>
+                    </div>
+                    
+                    <!-- نموذج التسجيل -->
+                    <form id="loginForm">
+                        <!-- البريد الإلكتروني -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 mb-3 font-semibold">
+                                <i class="fas fa-envelope ml-2"></i>
+                                البريد الإلكتروني
+                            </label>
+                            <div class="relative">
+                                <input type="email" 
+                                       id="email" 
+                                       name="email" 
+                                       class="input-field pl-12"
+                                       placeholder="example@email.com"
+                                       required>
+                                <i class="fas fa-envelope absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- كلمة المرور -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 mb-3 font-semibold">
+                                <i class="fas fa-lock ml-2"></i>
+                                كلمة المرور
+                            </label>
+                            <div class="relative">
+                                <input type="password" 
+                                       id="password" 
+                                       name="password" 
+                                       class="input-field pl-12 pr-12"
+                                       placeholder="كلمة المرور"
+                                       required>
+                                <i class="fas fa-lock absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                <button type="button" 
+                                        class="password-toggle"
+                                        onclick="togglePasswordVisibility()">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <div>
+                                    <input type="checkbox" id="rememberMe" class="hidden">
+                                    <label for="rememberMe" class="flex items-center cursor-pointer">
+                                        <div class="checkbox-custom mr-2"></div>
+                                        <span class="text-gray-600 text-sm">تذكرني</span>
+                                    </label>
+                                </div>
+                                <a href="#forgot-password" 
+                                   class="text-purple-600 hover:text-purple-800 text-sm font-semibold"
+                                   onclick="showForgotPassword()">
+                                    نسيت كلمة المرور؟
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- زر التسجيل -->
+                        <button type="submit" class="btn-primary mb-6">
+                            <i class="fas fa-sign-in-alt ml-2"></i> تسجيل الدخول
+                        </button>
+                        
+                        <!-- تسجيل الدخول بـ Google -->
+                        <div class="separator mb-6">أو</div>
+                        
+                        <button type="button" class="btn-google mb-6" onclick="loginWithGoogle()">
+                            <i class="fab fa-google ml-2 text-red-500"></i> تسجيل الدخول باستخدام Google
+                        </button>
+                        
+                        <!-- روابط إضافية -->
+                        <div class="text-center space-y-4">
+                            <p class="text-gray-600">
+                                ليس لديك حساب؟ 
+                                <a href="register.html" class="text-purple-600 hover:text-purple-800 font-semibold">
+                                    سجل الآن مجاناً
+                                </a>
+                            </p>
+                            
+                            <div class="text-sm text-gray-500">
+                                <a href="#terms" class="hover:text-gray-700">الشروط والأحكام</a>
+                                <span class="mx-2">•</span>
+                                <a href="#privacy" class="hover:text-gray-700">سياسة الخصوصية</a>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <!-- نموذج استعادة كلمة المرور (مخفي) -->
+                    <div id="forgotPasswordForm" class="hidden mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                        <h4 class="text-lg font-bold text-gray-800 mb-4">استعادة كلمة المرور</h4>
+                        <p class="text-gray-600 mb-4">
+                            أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
+                        </p>
+                        
+                        <div class="relative mb-4">
+                            <input type="email" 
+                                   id="resetEmail" 
+                                   class="input-field pl-12"
+                                   placeholder="أدخل بريدك الإلكتروني">
+                            <i class="fas fa-envelope absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        
+                        <div class="flex space-x-3 space-x-reverse">
+                            <button type="button" 
+                                    class="btn-secondary flex-1"
+                                    onclick="hideForgotPassword()">
+                                إلغاء
+                            </button>
+                            <button type="button" 
+                                    class="btn-primary flex-1"
+                                    onclick="sendPasswordReset()">
+                                <i class="fas fa-paper-plane ml-2"></i> إرسال
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- معلومات الأمان -->
+                <div class="mt-12 pt-8 border-t border-gray-200">
+                    <div class="flex items-start">
+                        <i class="fas fa-shield-alt text-purple-600 mt-1 ml-3"></i>
+                        <div>
+                            <h5 class="font-bold text-gray-800 mb-1">حماية وخصوصية</h5>
+                            <p class="text-gray-600 text-sm">
+                                نستخدم تشفيراً متقدماً لحماية بياناتك. جميع المراسلات تتم بوجود ولي الأمر وفق الضوابط الشرعية.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="js/app.js"></script>
+    <script>
+        // تهيئة صفحة الدخول
+        document.addEventListener('DOMContentLoaded', function() {
+            initLoginPage();
+        });
+        
+        function initLoginPage() {
+            // التحقق من وجود جلسة سابقة
+            const user = Zefaaf.AuthService.getCurrentUser();
+            if (user) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            // تهيئة checkbox التذكر
+            const rememberMeCheckbox = document.querySelector('#rememberMe');
+            const rememberMeLabel = document.querySelector('label[for="rememberMe"]');
+            
+            if (rememberMeCheckbox && rememberMeLabel) {
+                rememberMeLabel.addEventListener('click', function() {
+                    const checkbox = document.querySelector('#rememberMe');
+                    const customCheckbox = this.querySelector('.checkbox-custom');
+                    
+                    checkbox.checked = !checkbox.checked;
+                    customCheckbox.classList.toggle('checked', checkbox.checked);
+                });
+                
+                // استعادة حالة التذكر من localStorage
+                const rememberMe = localStorage.getItem('rememberMe') === 'true';
+                rememberMeCheckbox.checked = rememberMe;
+                if (rememberMe) {
+                    rememberMeLabel.querySelector('.checkbox-custom').classList.add('checked');
+                }
+            }
+            
+            // تهيئة حقول floating label
+            initFloatingLabels();
+        }
+        
+        function initFloatingLabels() {
+            const inputs = document.querySelectorAll('#loginForm input[type="email"], #loginForm input[type="password"]');
+            
+            inputs.forEach(input => {
+                const parent = input.parentElement;
+                const label = document.createElement('div');
+                label.className = 'floating-label';
+                label.textContent = input.placeholder;
+                parent.appendChild(label);
+                
+                // التحقق من وجود قيمة عند التحميل
+                if (input.value) {
+                    label.classList.add('active');
+                }
+                
+                // إضافة event listeners
+                input.addEventListener('focus', () => {
+                    label.classList.add('active');
+                });
+                
+                input.addEventListener('blur', () => {
+                    if (!input.value) {
+                        label.classList.remove('active');
+                    }
+                });
+                
+                input.addEventListener('input', () => {
+                    if (input.value) {
+                        label.classList.add('active');
+                    } else {
+                        label.classList.remove('active');
+                    }
+                });
+            });
+        }
+        
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const toggleButton = document.querySelector('.password-toggle i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleButton.classList.remove('fa-eye');
+                toggleButton.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleButton.classList.remove('fa-eye-slash');
+                toggleButton.classList.add('fa-eye');
+            }
+        }
+        
+        function showForgotPassword() {
+            document.getElementById('forgotPasswordForm').classList.remove('hidden');
+            return false; // لمنع scroll
+        }
+        
+        function hideForgotPassword() {
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
+        }
+        
+        function showAlert(message, type = 'error') {
+            const alertDiv = document.getElementById('alertMessage');
+            const alertText = document.getElementById('alertText');
+            
+            // تنظيف الأنواع السابقة
+            alertDiv.classList.remove('bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-blue-100', 'text-blue-700');
+            
+            // إضافة النوع الجديد
+            switch(type) {
+                case 'success':
+                    alertDiv.classList.add('bg-green-100', 'text-green-700');
+                    break;
+                case 'info':
+                    alertDiv.classList.add('bg-blue-100', 'text-blue-700');
+                    break;
+                default:
+                    alertDiv.classList.add('bg-red-100', 'text-red-700');
+            }
+            
+            alertText.textContent = message;
+            alertDiv.classList.remove('hidden');
+            
+            // إخفاء التنبيه تلقائياً بعد 5 ثواني
+            setTimeout(() => {
+                alertDiv.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // تسجيل الدخول
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            // التحقق من صحة الإدخال
+            if (!email || !password) {
+                showAlert('الرجاء ملء جميع الحقول المطلوبة');
+                return;
+            }
+            
+            if (!Zefaaf.UIHelper.validateEmail(email)) {
+                showAlert('البريد الإلكتروني غير صالح');
+                return;
+            }
+            
+            try {
+                // عرض حالة التحميل
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i> جاري تسجيل الدخول...';
+                submitBtn.disabled = true;
+                
+                // محاولة تسجيل الدخول
+                const result = await Zefaaf.AuthService.login(email, password);
+                
+                // حفظ حالة التذكر
+                if (rememberMe) {
+                    localStorage.setItem('rememberMe', 'true');
+                } else {
+                    localStorage.removeItem('rememberMe');
+                }
+                
+                // إعادة توجيه لوحة التحكم
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                
+                // إعادة تفعيل الزر
+                const submitBtn = document.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                
+                // عرض رسالة الخطأ
+                if (error.message.includes('401') || error.message.includes('Invalid credentials')) {
+                    showAlert('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+                } else if (error.message.includes('Network')) {
+                    showAlert('خطأ في الاتصال بالخادم. يرجى المحاولة لاحقاً');
+                } else {
+                    showAlert('حدث خطأ أثناء تسجيل الدخول: ' + error.message);
+                }
+            }
+        });
+        
+        // تسجيل الدخول بـ Google (تجريبي)
+        function loginWithGoogle() {
+            showAlert('تسجيل الدخول بـ Google غير متاح حالياً. يرجى استخدام البريد الإلكتروني وكلمة المرور.', 'info');
+        }
+        
+        // إرسال رابط استعادة كلمة المرور
+        async function sendPasswordReset() {
+            const email = document.getElementById('resetEmail').value.trim();
+            
+            if (!email) {
+                showAlert('الرجاء إدخال البريد الإلكتروني');
+                return;
+            }
+            
+            if (!Zefaaf.UIHelper.validateEmail(email)) {
+                showAlert('البريد الإلكتروني غير صالح');
+                return;
+            }
+            
+            // في تطبيق حقيقي، هنا سيكون طلب API
+            // لمثالنا، سنعرض رسالة نجاح
+            showAlert('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني. يرجى التحقق من صندوق الوارد.', 'success');
+            
+            // إخفاء النموذج بعد 3 ثواني
+            setTimeout(() => {
+                hideForgotPassword();
+                document.getElementById('resetEmail').value = '';
+            }, 3000);
+        }
+        
+        // التعامل مع مفاتيح لوحة المفاتيح
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + Enter لتسجيل الدخول
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                const loginForm = document.getElementById('loginForm');
+                if (loginForm) {
+                    loginForm.dispatchEvent(new Event('submit'));
+                }
+            }
+            
+            // Escape لإغلاق نافذة استعادة كلمة المرور
+            if (e.key === 'Escape') {
+                const forgotForm = document.getElementById('forgotPasswordForm');
+                if (forgotForm && !forgotForm.classList.contains('hidden')) {
+                    hideForgotPassword();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>زفاف - منصة الزواج الإسلامي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #8a2be2;
+            --primary-light: #9d4edd;
+            --secondary: #ffd700;
+            --light: #f8f7ff;
+            --dark: #2d1b69;
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #f8f7ff 0%, #e6e6fa 100%);
+        }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary) 0%, #ffed4e 100%);
+            color: var(--dark);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .card-shadow:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+        
+        .search-widget {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: -50px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .islamic-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239d4edd' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm shadow-sm">
+        <nav class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center">
+                        <i class="fas fa-heart text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-700 to-purple-900 bg-clip-text text-transparent">
+                            زفاف
+                        </h1>
+                        <p class="text-xs text-gray-500">Zefaaf.net</p>
+                    </div>
+                </div>
+                
+                <!-- Navigation -->
+                <div class="hidden md:flex items-center space-x-8 space-x-reverse">
+                    <a href="#features" class="text-gray-700 hover:text-purple-600 transition">مميزات المنصة</a>
+                    <a href="#how-it-works" class="text-gray-700 hover:text-purple-600 transition">كيف تعمل</a>
+                    <a href="#testimonials" class="text-gray-700 hover:text-purple-600 transition">قصص نجاح</a>
+                    <a href="#faq" class="text-gray-700 hover:text-purple-600 transition">أسئلة شائعة</a>
+                </div>
+                
+                <!-- Auth Buttons -->
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <button onclick="window.location.href='register.html'" 
+                            class="btn-primary px-6 py-2 rounded-full font-semibold">
+                        <i class="fas fa-user-plus ml-2"></i> تسجيل جديد
+                    </button>
+                    <button onclick="window.location.href='login.html'" 
+                            class="border border-purple-600 text-purple-600 px-6 py-2 rounded-full font-semibold hover:bg-purple-50 transition">
+                        <i class="fas fa-sign-in-alt ml-2"></i> دخول
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white pt-20 pb-32 relative overflow-hidden islamic-pattern">
+        <div class="absolute top-0 left-0 w-full h-full opacity-10">
+            <!-- Decorative elements -->
+        </div>
+        
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="max-w-4xl mx-auto text-center">
+                <div class="inline-block mb-6">
+                    <span class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm">
+                        <i class="fas fa-star ml-2"></i> مرخصة وموثقة
+                    </span>
+                </div>
+                
+                <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                    زواج إسلامي على<br>
+                    <span class="text-yellow-300">الكتاب والسنة</span>
+                </h1>
+                
+                <p class="text-xl md:text-2xl mb-10 text-white/90 leading-relaxed">
+                    منصة شرعية للتعارف والزواج حسب ضوابط الشريعة الإسلامية<br>
+                    نلتزم بالحجاب والستر ووجود الولي في جميع المراحل
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="window.location.href='register.html'" 
+                            class="btn-secondary px-8 py-4 rounded-full text-lg font-bold flex items-center justify-center">
+                        <i class="fas fa-gem ml-3"></i> سجل الآن مجاناً
+                    </button>
+                    <button onclick="document.getElementById('search-widget').scrollIntoView({behavior: 'smooth'})" 
+                            class="bg-white/20 backdrop-blur-sm text-white border border-white/30 px-8 py-4 rounded-full text-lg font-bold hover:bg-white/30 transition flex items-center justify-center">
+                        <i class="fas fa-search ml-3"></i> ابحث عن شريك
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search Widget -->
+    <section id="search-widget" class="container mx-auto px-4 -mt-20">
+        <div class="search-widget card-shadow">
+            <h2 class="text-2xl font-bold text-center mb-8 text-purple-900">
+                <i class="fas fa-search ml-3"></i>
+                ابحث عن شريك حياتك المناسب
+            </h2>
+            
+            <form id="searchForm" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Search For -->
+                <div>
+                    <label class="block text-gray-700 mb-3 font-semibold">
+                        <i class="fas fa-venus-mars ml-2"></i>
+                        أبحث عن
+                    </label>
+                    <select name="gender" class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white">
+                        <option value="">الجميع</option>
+                        <option value="male">زوجة</option>
+                        <option value="female">زوج</option>
+                    </select>
+                </div>
+                
+                <!-- Age Range -->
+                <div>
+                    <label class="block text-gray-700 mb-3 font-semibold">
+                        <i class="fas fa-calendar-alt ml-2"></i>
+                        العمر
+                    </label>
+                    <select name="age_range" class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white">
+                        <option value="">أي عمر</option>
+                        <option value="18-25">18 - 25 سنة</option>
+                        <option value="26-30">26 - 30 سنة</option>
+                        <option value="31-35">31 - 35 سنة</option>
+                        <option value="36-40">36 - 40 سنة</option>
+                        <option value="41+">41 سنة فأكثر</option>
+                    </select>
+                </div>
+                
+                <!-- Country -->
+                <div>
+                    <label class="block text-gray-700 mb-3 font-semibold">
+                        <i class="fas fa-globe-asia ml-2"></i>
+                        البلد
+                    </label>
+                    <select name="country" class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white">
+                        <option value="">جميع البلدان</option>
+                        <option value="السعودية">السعودية</option>
+                        <option value="مصر">مصر</option>
+                        <option value="الإمارات">الإمارات</option>
+                        <option value="الأردن">الأردن</option>
+                        <option value="الكويت">الكويت</option>
+                        <option value="قطر">قطر</option>
+                        <option value="عُمان">عُمان</option>
+                        <option value="البحرين">البحرين</option>
+                        <option value="الجزائر">الجزائر</option>
+                        <option value="المغرب">المغرب</option>
+                        <option value="تونس">تونس</option>
+                        <option value="السودان">السودان</option>
+                        <option value="اليمن">اليمن</option>
+                        <option value="سوريا">سوريا</option>
+                        <option value="لبنان">لبنان</option>
+                        <option value="فلسطين">فلسطين</option>
+                        <option value="العراق">العراق</option>
+                        <option value="ليبيا">ليبيا</option>
+                        <option value="other">دولة أخرى</option>
+                    </select>
+                </div>
+                
+                <!-- Search Button -->
+                <div class="flex items-end">
+                    <button type="submit" 
+                            class="btn-primary w-full py-4 rounded-xl text-lg font-bold flex items-center justify-center">
+                        <i class="fas fa-search ml-3"></i>
+                        ابحث الآن
+                        <i class="fas fa-arrow-left mr-3"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Advanced Search Toggle -->
+            <div class="mt-8 text-center">
+                <button id="advancedToggle" 
+                        class="text-purple-600 hover:text-purple-800 font-semibold">
+                    <i class="fas fa-sliders-h ml-2"></i>
+                    بحث متقدم
+                    <i class="fas fa-chevron-down mr-2"></i>
+                </button>
+            </div>
+            
+            <!-- Advanced Search (Hidden by default) -->
+            <div id="advancedSearch" class="hidden mt-8 pt-8 border-t border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Marital Status -->
+                    <div>
+                        <label class="block text-gray-700 mb-3 font-semibold">الحالة الاجتماعية</label>
+                        <select name="marital_status" class="w-full p-3 border border-gray-300 rounded-lg">
+                            <option value="">الجميع</option>
+                            <option value="أعزب/عزباء">أعزب/عزباء</option>
+                            <option value="مطلق/مطلقة">مطلق/مطلقة</option>
+                            <option value="أرمل/أرملة">أرمل/أرملة</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Prayer Level -->
+                    <div>
+                        <label class="block text-gray-700 mb-3 font-semibold">المحافظة على الصلاة</label>
+                        <select name="prayer_level" class="w-full p-3 border border-gray-300 rounded-lg">
+                            <option value="">الجميع</option>
+                            <option value="دائمًا في وقتها">دائمًا في وقتها</option>
+                            <option value="غالبًا في وقتها">غالبًا في وقتها</option>
+                            <option value="أحيانًا">أحيانًا</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Hijab/Beard -->
+                    <div>
+                        <label class="block text-gray-700 mb-3 font-semibold">الالتزام الظاهري</label>
+                        <select name="religious_appearance" class="w-full p-3 border border-gray-300 rounded-lg">
+                            <option value="">الجميع</option>
+                            <option value="محجبة/ملتحي">محجبة/ملتحي</option>
+                            <option value="غير محجبة/غير ملتحي">غير محجبة/غير ملتحي</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-4 text-purple-900">
+                لماذا تختار منصة زفاف؟
+            </h2>
+            <p class="text-gray-600 text-center mb-16 max-w-2xl mx-auto">
+                نقدم لك بيئة آمنة وشرعية للتعارف بضوابط الإسلام
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="text-center p-8 card-shadow rounded-2xl bg-gradient-to-b from-white to-purple-50">
+                    <div class="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-lock text-purple-600 text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4 text-purple-800">آمن ومراقب</h3>
+                    <p class="text-gray-600">
+                        جميع الصور تخضع لمراقبة الذكاء الاصطناعي للتحقق من الالتزام بالحشمة والستر الإسلامي
+                    </p>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="text-center p-8 card-shadow rounded-2xl bg-gradient-to-b from-white to-purple-50">
+                    <div class="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-user-shield text-purple-600 text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4 text-purple-800">وجود الولي</h3>
+                    <p class="text-gray-600">
+                        نحرص على وجود ولي الأمر في جميع مراحل التعارف والمحادثات وفقًا للشريعة
+                    </p>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="text-center p-8 card-shadow rounded-2xl bg-gradient-to-b from-white to-purple-50">
+                    <div class="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-heart text-purple-600 text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4 text-purple-800">مطابقة ذكية</h3>
+                    <p class="text-gray-600">
+                        نستخدم الذكاء الاصطناعي المتقدم لمطابقة الأشخاص بناءً على القيم والاهتمامات المشتركة
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16 text-purple-900">
+                خطوات العمل على المنصة
+            </h2>
+            
+            <div class="relative">
+                <!-- Timeline Line -->
+                <div class="hidden md:block absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-purple-400 to-purple-600"></div>
+                
+                <!-- Step 1 -->
+                <div class="flex flex-col md:flex-row items-center mb-16 relative">
+                    <div class="md:w-1/2 md:pr-12 md:text-right order-2 md:order-1">
+                        <div class="bg-white p-8 rounded-2xl card-shadow">
+                            <span class="inline-block w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 text-white rounded-full flex items-center justify-center text-xl font-bold mb-4">
+                                1
+                            </span>
+                            <h3 class="text-xl font-bold mb-4 text-purple-800">التسجيل والتحقق</h3>
+                            <p class="text-gray-600">
+                                سجل بياناتك الأساسية واختر مواصفات شريك حياتك. نتحقق من هويتك لضمان مصداقية المنصة.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="md:w-1/2 md:pl-12 mb-8 md:mb-0 order-1 md:order-2">
+                        <div class="w-64 h-64 mx-auto bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-user-check text-purple-600 text-6xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="flex flex-col md:flex-row items-center mb-16 relative">
+                    <div class="md:w-1/2 md:pr-12 mb-8 md:mb-0">
+                        <div class="w-64 h-64 mx-auto bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-search text-purple-600 text-6xl"></i>
+                        </div>
+                    </div>
+                    <div class="md:w-1/2 md:pl-12">
+                        <div class="bg-white p-8 rounded-2xl card-shadow">
+                            <span class="inline-block w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 text-white rounded-full flex items-center justify-center text-xl font-bold mb-4">
+                                2
+                            </span>
+                            <h3 class="text-xl font-bold mb-4 text-purple-800">البحث والمطابقة</h3>
+                            <p class="text-gray-600">
+                                ابحث عن شريك مناسب باستخدام أدوات البحث المتقدمة. الذكاء الاصطناعي يساعد في إيجاد أفضل المطابقات.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="flex flex-col md:flex-row items-center relative">
+                    <div class="md:w-1/2 md:pr-12 md:text-right order-2 md:order-1">
+                        <div class="bg-white p-8 rounded-2xl card-shadow">
+                            <span class="inline-block w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 text-white rounded-full flex items-center justify-center text-xl font-bold mb-4">
+                                3
+                            </span>
+                            <h3 class="text-xl font-bold mb-4 text-purple-800">التواصل الشرعي</h3>
+                            <p class="text-gray-600">
+                                تواصل مع من ترغب عبر منصتنا الآمنة بوجود ولي الأمر. نضمن خصوصيتك والتزامنا بالضوابط الشرعية.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="md:w-1/2 md:pl-12 mb-8 md:mb-0 order-1 md:order-2">
+                        <div class="w-64 h-64 mx-auto bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-comments text-purple-600 text-6xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 hero-gradient text-white relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-full opacity-10 islamic-pattern"></div>
+        
+        <div class="container mx-auto px-4 text-center relative z-10">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6">
+                ابدأ رحلة البحث عن شريك حياتك اليوم
+            </h2>
+            <p class="text-xl mb-10 text-white/90 max-w-2xl mx-auto">
+                انضم إلى آلاف المسلمين الذين وجدوا شريك حياتهم عبر منصتنا الشرعية
+            </p>
+            
+            <div class="flex flex-col sm:flex-row gap-6 justify-center">
+                <button onclick="window.location.href='register.html'" 
+                        class="bg-white text-purple-700 px-10 py-4 rounded-full text-lg font-bold hover:bg-gray-100 transition flex items-center justify-center">
+                    <i class="fas fa-user-plus ml-3"></i> سجل الآن مجانًا
+                </button>
+                <button onclick="window.location.href='login.html'" 
+                        class="border-2 border-white text-white px-10 py-4 rounded-full text-lg font-bold hover:bg-white/10 transition flex items-center justify-center">
+                    <i class="fas fa-sign-in-alt ml-3"></i> تسجيل الدخول
+                </button>
+            </div>
+            
+            <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+                <div class="text-center">
+                    <div class="text-3xl font-bold mb-2">10,000+</div>
+                    <div class="text-white/80">عضو مسجل</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold mb-2">2,000+</div>
+                    <div class="text-white/80">زواج ناجح</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold mb-2">50+</div>
+                    <div class="text-white/80">دولة</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold mb-2">24/7</div>
+                    <div class="text-white/80">دعم فني</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white pt-12 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+                <!-- Logo and Description -->
+                <div>
+                    <div class="flex items-center space-x-3 space-x-reverse mb-6">
+                        <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-full flex items-center justify-center">
+                            <i class="fas fa-heart text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold">زفاف</h3>
+                    </div>
+                    <p class="text-gray-400 mb-6">
+                        منصة الزواج الإسلامي الأولى التي تلتزم بالكتاب والسنة في جميع مراحل التعارف والزواج.
+                    </p>
+                    <div class="flex space-x-4 space-x-reverse">
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-purple-600 transition">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-purple-600 transition">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-purple-600 transition">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-purple-600 transition">
+                            <i class="fab fa-youtube"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h4 class="text-lg font-bold mb-6">روابط سريعة</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">الرئيسية</a></li>
+                        <li><a href="#features" class="text-gray-400 hover:text-white transition">مميزات المنصة</a></li>
+                        <li><a href="#how-it-works" class="text-gray-400 hover:text-white transition">كيف تعمل</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">اشتراكات الأعضاء</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">الشروط والأحكام</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Important Links -->
+                <div>
+                    <h4 class="text-lg font-bold mb-6">روابط مهمة</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">سياسة الخصوصية</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">الأسئلة الشائعة</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">اتصل بنا</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">الشكاوى والمقترحات</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">وظائف شاغرة</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Contact Info -->
+                <div>
+                    <h4 class="text-lg font-bold mb-6">اتصل بنا</h4>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <i class="fas fa-envelope text-purple-400 mt-1 ml-3"></i>
+                            <span class="text-gray-400">info@zefaaf.net</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-phone text-purple-400 mt-1 ml-3"></i>
+                            <span class="text-gray-400">+966 55 123 4567</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-map-marker-alt text-purple-400 mt-1 ml-3"></i>
+                            <span class="text-gray-400">الرياض، المملكة العربية السعودية</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="pt-8 border-t border-gray-800 text-center">
+                <p class="text-gray-500">
+                    © 2024 زفاف - Zefaaf.net. جميع الحقوق محفوظة.
+                    <span class="block md:inline mt-2 md:mt-0">
+                        تصميم وتطوير بمواصفات تقنية متقدمة.
+                    </span>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/app.js"></script>
+    <script>
+        // تهيئة التطبيق
+        document.addEventListener('DOMContentLoaded', function() {
+            // تحقق من حالة المستخدم
+            if (window.Zefaaf && window.Zefaaf.AuthService.isLoggedIn()) {
+                // تحديث زر الدخول إذا كان المستخدم مسجلاً
+                const loginBtn = document.querySelector('button[onclick*="login.html"]');
+                if (loginBtn) {
+                    loginBtn.innerHTML = '<i class="fas fa-tachometer-alt ml-2"></i> لوحة التحكم';
+                    loginBtn.onclick = function() {
+                        window.location.href = 'dashboard.html';
+                    };
+                }
+            }
+        });
+        
+        // Advanced search toggle
+        document.getElementById('advancedToggle').addEventListener('click', function() {
+            const advancedSearch = document.getElementById('advancedSearch');
+            const icon = this.querySelector('.fa-chevron-down');
+            
+            if (advancedSearch.classList.contains('hidden')) {
+                advancedSearch.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                this.innerHTML = '<i class="fas fa-sliders-h ml-2"></i> إغلاق البحث المتقدم <i class="fas fa-chevron-up mr-2"></i>';
+            } else {
+                advancedSearch.classList.add('hidden');
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                this.innerHTML = '<i class="fas fa-sliders-h ml-2"></i> بحث متقدم <i class="fas fa-chevron-down mr-2"></i>';
+            }
+        });
+        
+        // Search form submission
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const searchParams = {};
+            
+            for (const [key, value] of formData.entries()) {
+                if (value) {
+                    // تحويل القيم للتنسيق المناسب
+                    if (key === 'age_range' && value.includes('-')) {
+                        const [min, max] = value.split('-');
+                        searchParams.age_min = parseInt(min);
+                        searchParams.age_max = parseInt(max.replace('+', '100'));
+                    } else {
+                        searchParams[key] = value;
+                    }
+                }
+            }
+            
+            // Store search parameters and redirect to dashboard
+            if (window.Zefaaf && window.Zefaaf.StorageManager) {
+                window.Zefaaf.StorageManager.setSearchParams(searchParams);
+            } else {
+                localStorage.setItem('searchParams', JSON.stringify(searchParams));
+            }
+            
+            window.location.href = 'dashboard.html';
+        });
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                
+                if (href !== '#') {
+                    e.preventDefault();
+                    
+                    const targetElement = document.querySelector(href);
+                    if (targetElement) {
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
