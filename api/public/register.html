@@ -190,6 +190,32 @@
         .border-red-500 {
             border-color: #f44336 !important;
         }
+        
+        .section-container {
+            margin-bottom: 2rem;
+        }
+        
+        .gender-option {
+            border: 2px solid #e6e6fa;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .gender-option.selected {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.05) 0%, rgba(157, 78, 221, 0.05) 100%);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.1);
+        }
+        
+        .gender-option i {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: block;
+        }
     </style>
 </head>
 <body class="py-8">
@@ -275,20 +301,20 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Gender Selection -->
-                        <div class="md:col-span-2">
+                        <div class="md:col-span-2 section-container">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 أنا أبحث عن:
                                 <span class="text-red-500 mr-1">*</span>
                             </label>
                             <div class="grid grid-cols-2 gap-4">
-                                <div class="option-card" data-value="male">
+                                <div class="gender-option" data-value="male">
                                     <i class="fas fa-mars text-blue-500"></i>
-                                    <h4 class="font-bold text-lg mb-2">زوجة</h4>
+                                    <h4 class="font-bold text-lg mb-2">أنا زوج</h4>
                                     <p class="text-gray-600 text-sm">أبحث عن زوجة صالحة</p>
                                 </div>
-                                <div class="option-card" data-value="female">
+                                <div class="gender-option" data-value="female">
                                     <i class="fas fa-venus text-pink-500"></i>
-                                    <h4 class="font-bold text-lg mb-2">زوج</h4>
+                                    <h4 class="font-bold text-lg mb-2">أنا زوجة</h4>
                                     <p class="text-gray-600 text-sm">أبحث عن زوج صالح</p>
                                 </div>
                             </div>
@@ -416,7 +442,7 @@
                         <i class="fas fa-heart ml-3"></i> الحالة الاجتماعية
                     </h3>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 section-container">
                         <div class="option-card" data-value="أعزب/عزباء">
                             <i class="fas fa-user text-blue-500"></i>
                             <h4 class="font-bold text-lg mb-2">أعزب/عزباء</h4>
@@ -438,7 +464,7 @@
                     <input type="hidden" name="marital_status" id="marital_status" required>
                     
                     <!-- Children -->
-                    <div class="mb-8">
+                    <div class="mb-8 section-container">
                         <label class="block text-gray-700 mb-4 font-semibold">
                             هل لديك أطفال؟
                         </label>
@@ -455,11 +481,11 @@
                                 <p class="text-gray-600 text-sm">ليس لدي أطفال</p>
                             </div>
                         </div>
-                        <input type="hidden" name="has_children" id="has_children">
+                        <input type="hidden" name="has_children" id="has_children" value="false">
                     </div>
                     
                     <!-- Number of Children (if applicable) -->
-                    <div id="childrenCountSection" class="hidden">
+                    <div id="childrenCountSection" class="hidden section-container">
                         <label class="block text-gray-700 mb-2 font-semibold">
                             عدد الأطفال
                         </label>
@@ -490,7 +516,7 @@
                     
                     <div class="space-y-8">
                         <!-- Prayer Level -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 مستوى المحافظة على الصلاة
                                 <span class="text-red-500 mr-1">*</span>
@@ -524,7 +550,7 @@
                         </div>
                         
                         <!-- Hijab Status (for females) -->
-                        <div id="hijabSection" class="hidden">
+                        <div id="hijabSection" class="section-container hidden">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 الحجاب
                                 <span class="text-red-500 mr-1">*</span>
@@ -558,7 +584,7 @@
                         </div>
                         
                         <!-- Beard Status (for males) -->
-                        <div id="beardSection" class="hidden">
+                        <div id="beardSection" class="section-container hidden">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 اللحية
                                 <span class="text-red-500 mr-1">*</span>
@@ -586,12 +612,12 @@
                         </div>
                         
                         <!-- Smoking -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 التدخين
                             </label>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="option-card" data-value="لا أدخن">
+                                <div class="option-card selected" data-value="لا أدخن">
                                     <i class="fas fa-ban text-green-500"></i>
                                     <h4 class="font-bold text-lg mb-2">لا أدخن</h4>
                                     <p class="text-gray-600 text-sm">لا أدخن مطلقًا</p>
@@ -785,7 +811,7 @@
         
         function initRegistrationPage() {
             // التحقق من وجود جلسة سابقة
-            if (Zefaaf && Zefaaf.AuthService && Zefaaf.AuthService.isLoggedIn()) {
+            if (window.Zefaaf && Zefaaf.AuthService && Zefaaf.AuthService.isLoggedIn()) {
                 window.location.href = 'dashboard.html';
                 return;
             }
@@ -794,52 +820,277 @@
             initOptionCards();
             initFormValidation();
             initPasswordToggles();
+            initDefaultSelections();
         }
         
+        // Set default selections
+        function initDefaultSelections() {
+            // Set default smoking selection
+            const smokingCard = document.querySelector('.option-card[data-value="لا أدخن"]');
+            if (smokingCard) {
+                smokingCard.classList.add('selected');
+                document.getElementById('smoking').value = 'لا أدخن';
+            }
+            
+            // Set default marital status to "أعزب/عزباء" if not already selected
+            setTimeout(() => {
+                const maritalCards = document.querySelectorAll('.option-card[data-value="أعزب/عزباء"]');
+                if (maritalCards.length > 0 && !document.getElementById('marital_status').value) {
+                    maritalCards[0].click();
+                }
+                
+                // Set default prayer level to "دائمًا في وقتها" if not already selected
+                const prayerCards = document.querySelectorAll('.option-card[data-value="دائمًا في وقتها"]');
+                if (prayerCards.length > 0 && !document.getElementById('prayer_level').value) {
+                    prayerCards[0].click();
+                }
+            }, 100);
+        }
+        
+        // 1. إصلاح منطق اختيار البطاقات (Selection Logic)
         function initOptionCards() {
-            document.querySelectorAll('.option-card[data-value]').forEach(card => {
-                card.addEventListener('click', function(e) {
-                    // منع أي تداخل مع عناصر أخرى
-                    e.stopPropagation();
-
-                    // البحث عن الحاوية الصحيحة التي تضم البطاقات والحقل المخفي
-                    const container = this.closest('.md:col-span-2') || this.closest('.mb-8') || this.parentElement.parentElement;
-                    const hiddenInput = container ? container.querySelector('input[type="hidden"]') : null;
-                    
-                    if (!hiddenInput) return;
-
-                    const value = this.getAttribute('data-value');
-                    
-                    // 1. تحديث الشكل المرئي: تمييز البطاقة المختارة باللون البنفسجي
-                    this.parentElement.querySelectorAll('.option-card').forEach(sibling => {
-                        sibling.classList.remove('selected');
-                    });
-                    this.classList.add('selected');
-                    
-                    // 2. تحديث القيمة الفعلية في الحقل الذي يقرأه السيرفر
-                    hiddenInput.value = value;
-
-                    // 3. الخطوة الهامة: مسح رسالة الخطأ الحمراء "هذا الحقل مطلوب" فور الاختيار
-                    if (typeof clearFieldError === 'function') {
-                        clearFieldError(hiddenInput);
+            // Find all option cards in the current step
+            const currentStepElement = document.getElementById(`step${currentStep}`);
+            if (!currentStepElement) return;
+            
+            currentStepElement.querySelectorAll('.option-card[data-value], .gender-option[data-value]').forEach(card => {
+                card.addEventListener('click', function() {
+                    handleOptionCardClick(this);
+                });
+                
+                // Add data attribute for easy identification
+                card.dataset.optionType = 'selectable';
+            });
+        }
+        
+        function handleOptionCardClick(card) {
+            const value = card.getAttribute('data-value');
+            const cardType = card.classList.contains('gender-option') ? 'gender-option' : 'option-card';
+            
+            // Find the section container
+            const sectionContainer = card.closest('.section-container') || card.closest('div[class*="col-span"]');
+            
+            // Find the hidden input - search in broader scope
+            let hiddenInput = null;
+            
+            if (sectionContainer) {
+                // Look for hidden input in section container
+                hiddenInput = sectionContainer.querySelector('input[type="hidden"]');
+                
+                // If not found, look in parent or specific IDs
+                if (!hiddenInput) {
+                    const inputId = getInputIdForCardType(cardType, sectionContainer);
+                    if (inputId) {
+                        hiddenInput = document.getElementById(inputId);
                     }
-
-                    // التعامل مع الحالات الخاصة (الجنس، الأطفال)
-                    const fieldId = hiddenInput.id || hiddenInput.name;
-                    if (fieldId === 'gender') {
-                        updateGenderSpecificSections(value);
+                }
+            }
+            
+            // Remove selected class from all cards in the same group
+            if (sectionContainer) {
+                const allCardsInGroup = sectionContainer.querySelectorAll('.option-card[data-value], .gender-option[data-value]');
+                allCardsInGroup.forEach(c => {
+                    c.classList.remove('selected');
+                    c.style.borderColor = '';
+                });
+            }
+            
+            // Add selected class to clicked card
+            card.classList.add('selected');
+            card.style.borderColor = 'var(--primary)';
+            
+            // Clear any error messages for this section
+            clearAllFieldErrorsInSection(sectionContainer);
+            
+            // Update hidden input value
+            if (hiddenInput) {
+                hiddenInput.value = value;
+                
+                // Trigger change event manually
+                const event = new Event('change', { bubbles: true });
+                hiddenInput.dispatchEvent(event);
+                
+                console.log(`Updated ${hiddenInput.id} to value: ${value}`);
+                
+                // Special handling for specific fields
+                if (hiddenInput.id === 'gender') {
+                    updateGenderSpecificSections(value);
+                }
+                
+                if (hiddenInput.id === 'has_children') {
+                    const childrenSection = document.getElementById('childrenCountSection');
+                    if (value === 'true') {
+                        childrenSection.classList.remove('hidden');
+                        childrenSection.querySelector('select')?.setAttribute('required', 'true');
+                    } else {
+                        childrenSection.classList.add('hidden');
+                        childrenSection.querySelector('select')?.removeAttribute('required');
                     }
+                }
+            }
+        }
+        
+        function getInputIdForCardType(cardType, container) {
+            if (cardType === 'gender-option') return 'gender';
+            if (container.classList.contains('section-container')) {
+                const sectionId = container.id;
+                if (sectionId.includes('marital')) return 'marital_status';
+                if (sectionId.includes('hijab')) return 'hijab_status';
+                if (sectionId.includes('beard')) return 'beard_status';
+                if (sectionId.includes('prayer')) return 'prayer_level';
+                if (sectionId.includes('smoking')) return 'smoking';
+            }
+            
+            // Fallback: check for any hidden input in container
+            const hiddenInput = container.querySelector('input[type="hidden"]');
+            return hiddenInput ? hiddenInput.id : null;
+        }
+        
+        function clearAllFieldErrorsInSection(section) {
+            if (!section) return;
+            
+            const errors = section.querySelectorAll('.field-error');
+            errors.forEach(error => error.remove());
+            
+            const inputs = section.querySelectorAll('.input-field, select, .option-card, .gender-option');
+            inputs.forEach(input => {
+                if (input.classList) {
+                    input.classList.remove('border-red-500');
+                }
+            });
+        }
+        
+        // 4. إصلاح نظام التحقق (Validation System)
+        function validateStep(step) {
+            const currentStepElement = document.getElementById(`step${step}`);
+            if (!currentStepElement) return false;
+            
+            const inputs = currentStepElement.querySelectorAll('[required]');
+            let isValid = true;
+            let firstInvalidInput = null;
+            
+            for (const input of inputs) {
+                // Skip hidden inputs for focus
+                if (input.type === 'hidden') {
+                    if (!input.value || input.value.trim() === '') {
+                        showFieldError(input, 'هذا الحقل مطلوب');
+                        if (isValid) {
+                            isValid = false;
+                        }
+                    } else {
+                        clearFieldError(input);
+                    }
+                    continue;
+                }
+                
+                if (!input.value || input.value.trim() === '') {
+                    showFieldError(input, 'هذا الحقل مطلوب');
+                    if (isValid) {
+                        firstInvalidInput = input;
+                        isValid = false;
+                    }
+                } else {
+                    clearFieldError(input);
                     
-                    if (fieldId === 'has_children') {
-                        const childrenSection = document.getElementById('childrenCountSection');
-                        if (value === 'true') {
-                            childrenSection.classList.remove('hidden');
-                        } else {
-                            childrenSection.classList.add('hidden');
+                    // Special validation for passwords
+                    if (input.name === 'password' && input.value.length < 8) {
+                        showFieldError(input, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+                        if (isValid) {
+                            firstInvalidInput = input;
+                            isValid = false;
                         }
                     }
+                    
+                    if (input.name === 'confirm_password') {
+                        const password = document.querySelector('[name="password"]')?.value;
+                        if (input.value !== password) {
+                            showFieldError(input, 'كلمات المرور غير متطابقة');
+                            if (isValid) {
+                                firstInvalidInput = input;
+                                isValid = false;
+                            }
+                        }
+                    }
+                    
+                    // Age validation
+                    if (input.name === 'birth_date') {
+                        const birthDate = new Date(input.value);
+                        const today = new Date();
+                        let age = today.getFullYear() - birthDate.getFullYear();
+                        const monthDiff = today.getMonth() - birthDate.getMonth();
+                        
+                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                            age--;
+                        }
+                        
+                        if (age < 18) {
+                            showFieldError(input, 'يجب أن يكون العمر 18 سنة على الأقل');
+                            if (isValid) {
+                                isValid = false;
+                            }
+                        }
+                        
+                        if (age > 100) {
+                            showFieldError(input, 'العمر غير صالح');
+                            if (isValid) {
+                                isValid = false;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Focus on first invalid input (skip hidden inputs)
+            if (firstInvalidInput && firstInvalidInput.type !== 'hidden') {
+                firstInvalidInput.focus();
+            }
+            
+            return isValid;
+        }
+        
+        // 5. تزامن الأقسام الدينية (Conditional Sections)
+        function updateGenderSpecificSections(gender) {
+            const hijabSection = document.getElementById('hijabSection');
+            const beardSection = document.getElementById('beardSection');
+            
+            // Hide both sections first
+            if (hijabSection) hijabSection.classList.add('hidden');
+            if (beardSection) beardSection.classList.add('hidden');
+            
+            // Clear any existing selections in hidden sections
+            if (hijabSection) {
+                hijabSection.querySelectorAll('.option-card.selected').forEach(card => {
+                    card.classList.remove('selected');
                 });
-            });
+                document.getElementById('hijab_status').value = '';
+                document.getElementById('hijab_status').removeAttribute('required');
+            }
+            
+            if (beardSection) {
+                beardSection.querySelectorAll('.option-card.selected').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                document.getElementById('beard_status').value = '';
+                document.getElementById('beard_status').removeAttribute('required');
+            }
+            
+            // Show appropriate section based on gender
+            if (gender === 'female') {
+                if (hijabSection) {
+                    hijabSection.classList.remove('hidden');
+                    document.getElementById('hijab_status').setAttribute('required', 'true');
+                }
+            } else if (gender === 'male') {
+                if (beardSection) {
+                    beardSection.classList.remove('hidden');
+                    document.getElementById('beard_status').setAttribute('required', 'true');
+                }
+            }
+            
+            // Update option cards for the new step
+            setTimeout(() => {
+                initOptionCards();
+            }, 50);
         }
         
         // Initialize password toggle buttons
@@ -861,27 +1112,6 @@
                     }
                 });
             });
-        }
-        
-        // Update gender-specific sections
-        function updateGenderSpecificSections(gender) {
-            const hijabSection = document.getElementById('hijabSection');
-            const beardSection = document.getElementById('beardSection');
-            
-            if (gender === 'female') {
-                hijabSection?.classList.remove('hidden');
-                beardSection?.classList.add('hidden');
-                document.getElementById('hijab_status')?.setAttribute('required', 'true');
-                document.getElementById('beard_status')?.removeAttribute('required');
-            } else if (gender === 'male') {
-                hijabSection?.classList.add('hidden');
-                beardSection?.classList.remove('hidden');
-                document.getElementById('hijab_status')?.removeAttribute('required');
-                document.getElementById('beard_status')?.setAttribute('required', 'true');
-            } else {
-                hijabSection?.classList.add('hidden');
-                beardSection?.classList.add('hidden');
-            }
         }
         
         // Initialize form validation
@@ -937,7 +1167,15 @@
             }
             
             errorElement.textContent = message;
-            input.classList.add('border-red-500');
+            
+            if (input.classList) {
+                input.classList.add('border-red-500');
+            }
+            
+            // For option cards, highlight the container
+            if (input.classList && input.classList.contains('option-card')) {
+                input.style.borderColor = '#f44336';
+            }
         }
         
         function clearFieldError(input) {
@@ -948,7 +1186,18 @@
                 errorElement.remove();
             }
             
-            input.classList.remove('border-red-500');
+            if (input.classList) {
+                input.classList.remove('border-red-500');
+            }
+            
+            // For option cards, reset border color
+            if (input.classList && input.classList.contains('option-card')) {
+                if (input.classList.contains('selected')) {
+                    input.style.borderColor = 'var(--primary)';
+                } else {
+                    input.style.borderColor = '';
+                }
+            }
         }
         
         // Update character count
@@ -1016,64 +1265,12 @@
             const currentStepElement = document.getElementById(`step${currentStep}`);
             if (currentStepElement) {
                 currentStepElement.classList.add('active');
+                
+                // Re-initialize option cards for the new step
+                setTimeout(() => {
+                    initOptionCards();
+                }, 100);
             }
-        }
-        
-        // Validate current step
-        function validateStep(step) {
-            const currentStepElement = document.getElementById(`step${step}`);
-            if (!currentStepElement) return false;
-            
-            const inputs = currentStepElement.querySelectorAll('[required]');
-            let isValid = true;
-            
-            for (const input of inputs) {
-                if (!input.value || input.value.trim() === '') {
-                    showFieldError(input, 'هذا الحقل مطلوب');
-                    if (isValid) {
-                        input.focus();
-                        isValid = false;
-                    }
-                } else {
-                    clearFieldError(input);
-                    
-                    // Special validation for passwords
-                    if (input.name === 'password' && input.value.length < 8) {
-                        showFieldError(input, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-                        if (isValid) {
-                            input.focus();
-                            isValid = false;
-                        }
-                    }
-                    
-                    if (input.name === 'confirm_password') {
-                        const password = document.querySelector('[name="password"]')?.value;
-                        if (input.value !== password) {
-                            showFieldError(input, 'كلمات المرور غير متطابقة');
-                            if (isValid) {
-                                input.focus();
-                                isValid = false;
-                            }
-                        }
-                    }
-                    
-                    // Age validation
-                    if (input.name === 'birth_date') {
-                        const birthDate = new Date(input.value);
-                        const today = new Date();
-                        const age = today.getFullYear() - birthDate.getFullYear();
-                        
-                        if (age < 18) {
-                            showFieldError(input, 'يجب أن يكون العمر 18 سنة على الأقل');
-                            if (isValid) {
-                                isValid = false;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return isValid;
         }
         
         // Next step
