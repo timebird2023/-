@@ -185,6 +185,7 @@
             color: #f44336;
             font-size: 0.875rem;
             margin-top: 0.25rem;
+            text-align: right;
         }
         
         .border-red-500 {
@@ -233,11 +234,12 @@
             
             .input-field {
                 padding: 12px 16px;
+                font-size: 16px;
             }
             
             .btn-primary, .btn-secondary {
-                padding: 10px 20px;
-                font-size: 14px;
+                padding: 12px 24px;
+                font-size: 16px;
             }
             
             .option-card, .gender-option {
@@ -246,6 +248,36 @@
             
             .option-card i, .gender-option i {
                 font-size: 2rem;
+            }
+            
+            .step-indicator {
+                font-size: 14px;
+            }
+        }
+        
+        /* تحسينات للتركيز على الهاتف */
+        @media (max-width: 480px) {
+            .container {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            
+            .grid-cols-2 {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .grid-cols-3 {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .md\:grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .md\:grid-cols-3 {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -277,7 +309,7 @@
         <div class="mb-8">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold text-purple-900">تسجيل عضو جديد</h2>
-                <span class="text-gray-600 font-semibold" id="stepIndicator">الخطوة 1 من 4</span>
+                <span class="text-gray-600 font-semibold step-indicator" id="stepIndicator">الخطوة 1 من 4</span>
             </div>
             
             <div class="bg-gray-200 rounded-full h-2 mb-2">
@@ -333,7 +365,7 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Gender Selection -->
-                        <div class="md:col-span-2 section-container">
+                        <div class="md:col-span-2 section-container" id="genderSection">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 أنا أبحث عن:
                                 <span class="text-red-500 mr-1">*</span>
@@ -354,7 +386,7 @@
                         </div>
                         
                         <!-- Full Name -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 الاسم الكامل
                                 <span class="text-red-500 mr-1">*</span>
@@ -363,7 +395,7 @@
                         </div>
                         
                         <!-- Email -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 البريد الإلكتروني
                                 <span class="text-red-500 mr-1">*</span>
@@ -372,7 +404,7 @@
                         </div>
                         
                         <!-- Password -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 كلمة المرور
                                 <span class="text-red-500 mr-1">*</span>
@@ -389,7 +421,7 @@
                         </div>
                         
                         <!-- Confirm Password -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 تأكيد كلمة المرور
                                 <span class="text-red-500 mr-1">*</span>
@@ -403,7 +435,7 @@
                         </div>
                         
                         <!-- Phone -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 رقم الهاتف
                                 <span class="text-red-500 mr-1">*</span>
@@ -412,7 +444,7 @@
                         </div>
                         
                         <!-- Birth Date -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 تاريخ الميلاد
                                 <span class="text-red-500 mr-1">*</span>
@@ -421,7 +453,7 @@
                         </div>
                         
                         <!-- Country -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 الدولة
                                 <span class="text-red-500 mr-1">*</span>
@@ -451,7 +483,7 @@
                         </div>
                         
                         <!-- City -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-2 font-semibold">
                                 المدينة
                                 <span class="text-red-500 mr-1">*</span>
@@ -474,7 +506,7 @@
                         <i class="fas fa-heart ml-3"></i> الحالة الاجتماعية
                     </h3>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 section-container">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 section-container" id="maritalStatusSection">
                         <div class="option-card" data-value="أعزب/عزباء">
                             <i class="fas fa-user text-blue-500"></i>
                             <h4 class="font-bold text-lg mb-2">أعزب/عزباء</h4>
@@ -496,7 +528,7 @@
                     <input type="hidden" name="marital_status" id="marital_status" required>
                     
                     <!-- Children -->
-                    <div class="mb-8 section-container">
+                    <div class="mb-8 section-container" id="childrenSection">
                         <label class="block text-gray-700 mb-4 font-semibold">
                             هل لديك أطفال؟
                         </label>
@@ -507,7 +539,7 @@
                                 <p class="text-gray-600 text-sm">لدي أطفال</p>
                             </div>
                             
-                            <div class="option-card" data-value="false">
+                            <div class="option-card selected" data-value="false">
                                 <i class="fas fa-times-circle text-gray-500"></i>
                                 <h4 class="font-bold text-lg mb-2">لا</h4>
                                 <p class="text-gray-600 text-sm">ليس لدي أطفال</p>
@@ -522,7 +554,7 @@
                             عدد الأطفال
                         </label>
                         <select name="children_count" class="input-field">
-                            <option value="">اختر عدد الأطفال</option>
+                            <option value="0">0</option>
                             <option value="1">1 طفل</option>
                             <option value="2">2 أطفال</option>
                             <option value="3">3 أطفال</option>
@@ -549,7 +581,7 @@
                     
                     <div class="space-y-8">
                         <!-- Prayer Level -->
-                        <div class="section-container">
+                        <div class="section-container" id="prayerSection">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 مستوى المحافظة على الصلاة
                                 <span class="text-red-500 mr-1">*</span>
@@ -586,7 +618,6 @@
                         <div id="hijabSection" class="section-container hidden">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 الحجاب
-                                <span class="text-red-500 mr-1">*</span>
                             </label>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="option-card" data-value="نقاب">
@@ -620,7 +651,6 @@
                         <div id="beardSection" class="section-container hidden">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 اللحية
-                                <span class="text-red-500 mr-1">*</span>
                             </label>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="option-card" data-value="لحية كاملة">
@@ -645,7 +675,7 @@
                         </div>
                         
                         <!-- Smoking -->
-                        <div class="section-container">
+                        <div class="section-container" id="smokingSection">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 التدخين
                             </label>
@@ -695,7 +725,7 @@
                     
                     <div class="space-y-8">
                         <!-- About Me -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 تحدث عن نفسك
                                 <span class="text-red-500 mr-1">*</span>
@@ -714,7 +744,7 @@
                         </div>
                         
                         <!-- Looking For -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 ما الذي تبحث عنه في شريك حياتك؟
                                 <span class="text-red-500 mr-1">*</span>
@@ -730,7 +760,7 @@
                         </div>
                         
                         <!-- Additional Info -->
-                        <div>
+                        <div class="section-container">
                             <label class="block text-gray-700 mb-4 font-semibold">
                                 معلومات إضافية
                             </label>
@@ -755,7 +785,7 @@
                         </div>
                         
                         <!-- Terms and Conditions -->
-                        <div class="bg-purple-50 p-6 rounded-xl border border-purple-200">
+                        <div class="bg-purple-50 p-6 rounded-xl border border-purple-200 section-container">
                             <div class="flex items-start mb-4">
                                 <input type="checkbox" id="terms" name="terms" class="mt-1 ml-3" required>
                                 <label for="terms" class="text-gray-700">
@@ -854,39 +884,15 @@
             initFormValidation();
             initPasswordToggles();
             initDefaultSelections();
-        }
-        
-        // Set default selections
-        function initDefaultSelections() {
-            // Set default smoking selection
-            const smokingCard = document.querySelector('.option-card[data-value="لا أدخن"]');
-            if (smokingCard) {
-                smokingCard.classList.add('selected');
-                document.getElementById('smoking').value = 'لا أدخن';
-            }
             
-            // Set default marital status to "أعزب/عزباء" if not already selected
-            setTimeout(() => {
-                const maritalCards = document.querySelectorAll('.option-card[data-value="أعزب/عزباء"]');
-                if (maritalCards.length > 0 && !document.getElementById('marital_status').value) {
-                    maritalCards[0].click();
-                }
-                
-                // Set default prayer level to "دائمًا في وقتها" if not already selected
-                const prayerCards = document.querySelectorAll('.option-card[data-value="دائمًا في وقتها"]');
-                if (prayerCards.length > 0 && !document.getElementById('prayer_level').value) {
-                    prayerCards[0].click();
-                }
-            }, 100);
+            // تحسين تجربة الهاتف: منع القفز عند التركيز
+            preventFocusJumps();
         }
         
-        // 1. إصلاح منطق اختيار البطاقات (Selection Logic)
+        // 1. إصلاح منطق البطاقات (Option Cards Logic) - الإصدار المحسن
         function initOptionCards() {
-            // Find all option cards in the current step
-            const currentStepElement = document.getElementById(`step${currentStep}`);
-            if (!currentStepElement) return;
-            
-            currentStepElement.querySelectorAll('.option-card[data-value], .gender-option[data-value]').forEach(card => {
+            // إضافة مستمعات الأحداث لجميع البطاقات القابلة للتحديد
+            document.querySelectorAll('.option-card[data-value], .gender-option[data-value]').forEach(card => {
                 card.addEventListener('click', function() {
                     handleOptionCardClick(this);
                 });
@@ -896,216 +902,110 @@
         function handleOptionCardClick(card) {
             const value = card.getAttribute('data-value');
             
-            // Find the closest section container
-            const sectionContainer = card.closest('.section-container') || 
-                                     card.closest('div[class*="col-span"]') || 
-                                     card.closest('.space-y-8')?.querySelector('.section-container') ||
-                                     card.parentElement;
+            // البحث عن الحاوية الأم المناسبة
+            const container = findParentContainer(card);
+            if (!container) return;
             
-            // Find the hidden input - search in specific locations
-            let hiddenInput = null;
-            let inputId = null;
+            // البحث عن الحقل المخفي داخل الحاوية
+            const hiddenInput = findHiddenInputInContainer(container, card);
             
-            // Determine which hidden input to update based on card context
-            if (card.classList.contains('gender-option')) {
-                inputId = 'gender';
-            } else {
-                // Look for specific IDs based on section content
-                if (sectionContainer) {
-                    const sectionLabel = sectionContainer.querySelector('label');
-                    if (sectionLabel) {
-                        const labelText = sectionLabel.textContent;
-                        if (labelText.includes('الحالة الاجتماعية')) inputId = 'marital_status';
-                        else if (labelText.includes('أطفال')) inputId = 'has_children';
-                        else if (labelText.includes('صلاة')) inputId = 'prayer_level';
-                        else if (labelText.includes('حجاب')) inputId = 'hijab_status';
-                        else if (labelText.includes('لحية')) inputId = 'beard_status';
-                        else if (labelText.includes('تدخين')) inputId = 'smoking';
-                    }
-                    
-                    // Also check for hidden input in the section container
-                    if (!inputId) {
-                        const sectionInput = sectionContainer.querySelector('input[type="hidden"]');
-                        if (sectionInput) {
-                            hiddenInput = sectionInput;
-                        }
-                    }
-                }
+            if (!hiddenInput) {
+                console.error('لم يتم العثور على حقل مخفي لحاوية:', container.id || container.className);
+                return;
             }
             
-            // Get the hidden input by ID if not already found
-            if (!hiddenInput && inputId) {
-                hiddenInput = document.getElementById(inputId);
-            }
+            // إزالة التحديد من جميع البطاقات في نفس المجموعة
+            const allCardsInGroup = container.querySelectorAll('.option-card[data-value], .gender-option[data-value]');
+            allCardsInGroup.forEach(c => {
+                c.classList.remove('selected');
+            });
             
-            // Remove selected class from all cards in the same group
-            if (sectionContainer) {
-                const allCardsInGroup = sectionContainer.querySelectorAll('.option-card[data-value], .gender-option[data-value]');
-                allCardsInGroup.forEach(c => {
-                    c.classList.remove('selected');
-                });
-            }
-            
-            // Add selected class to clicked card
+            // إضافة التحديد للبطاقة المختارة
             card.classList.add('selected');
             
-            // Clear any error messages for this section
-            clearAllFieldErrorsInSection(sectionContainer);
+            // تحديث قيمة الحقل المخفي
+            hiddenInput.value = value;
             
-            // Update hidden input value
-            if (hiddenInput) {
-                hiddenInput.value = value;
-                
-                // Trigger change event manually
-                const event = new Event('change', { bubbles: true });
-                hiddenInput.dispatchEvent(event);
-                
-                // Special handling for specific fields
-                if (hiddenInput.id === 'gender') {
-                    updateGenderSpecificSections(value);
-                }
-                
-                if (hiddenInput.id === 'has_children') {
-                    const childrenSection = document.getElementById('childrenCountSection');
-                    if (value === 'true') {
-                        childrenSection.classList.remove('hidden');
-                        childrenSection.querySelector('select')?.setAttribute('required', 'true');
-                    } else {
-                        childrenSection.classList.add('hidden');
-                        childrenSection.querySelector('select')?.removeAttribute('required');
-                        // Clear children count if "لا" is selected
-                        document.querySelector('select[name="children_count"]').value = '';
-                    }
-                }
+            // إرسال حدث change يدويًا
+            const changeEvent = new Event('change', { bubbles: true });
+            hiddenInput.dispatchEvent(changeEvent);
+            
+            // مسح أي أخطاء في هذا القسم
+            clearFieldErrorsInContainer(container);
+            
+            // معالجة خاصة بناءً على نوع الحقل
+            handleSpecialCases(hiddenInput.id, value);
+        }
+        
+        // دالة مساعدة للعثور على الحاوية الأم
+        function findParentContainer(element) {
+            let container = element.closest('.section-container');
+            if (!container) {
+                container = element.closest('.md\\:col-span-2') || 
+                           element.closest('.space-y-8') || 
+                           element.closest('div[class*="grid"]');
             }
+            return container;
         }
         
-        function clearAllFieldErrorsInSection(section) {
-            if (!section) return;
+        // دالة مساعدة للعثور على الحقل المخفي داخل الحاوية
+        function findHiddenInputInContainer(container, card) {
+            // أولاً: البحث عن حقل مخفي داخل الحاوية مباشرة
+            let hiddenInput = container.querySelector('input[type="hidden"]');
             
-            const errors = section.querySelectorAll('.field-error');
-            errors.forEach(error => error.remove());
-            
-            const inputs = section.querySelectorAll('.input-field, select, .option-card, .gender-option');
-            inputs.forEach(input => {
-                if (input.classList) {
-                    input.classList.remove('border-red-500');
-                }
-            });
-        }
-        
-        // 4. إصلاح نظام التحقق (Validation System)
-        function validateStep(step) {
-            const currentStepElement = document.getElementById(`step${step}`);
-            if (!currentStepElement) return false;
-            
-            const inputs = currentStepElement.querySelectorAll('[required]:not([type="hidden"])');
-            let isValid = true;
-            let firstInvalidInput = null;
-            
-            for (const input of inputs) {
-                // Skip hidden inputs for validation
-                if (input.type === 'hidden') continue;
-                
-                if (!input.value || input.value.trim() === '') {
-                    showFieldError(input, 'هذا الحقل مطلوب');
-                    if (isValid) {
-                        firstInvalidInput = input;
-                        isValid = false;
-                    }
+            // ثانياً: إذا لم يتم العثور، البحث عن حقل مع معرف محدد
+            if (!hiddenInput) {
+                if (card.classList.contains('gender-option')) {
+                    hiddenInput = document.getElementById('gender');
                 } else {
-                    clearFieldError(input);
-                    
-                    // Special validation for passwords
-                    if (input.name === 'password' && input.value.length < 8) {
-                        showFieldError(input, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
-                        if (isValid) {
-                            firstInvalidInput = input;
-                            isValid = false;
-                        }
-                    }
-                    
-                    if (input.name === 'confirm_password') {
-                        const password = document.querySelector('[name="password"]')?.value;
-                        if (input.value !== password) {
-                            showFieldError(input, 'كلمات المرور غير متطابقة');
-                            if (isValid) {
-                                firstInvalidInput = input;
-                                isValid = false;
-                            }
-                        }
-                    }
-                    
-                    // Age validation
-                    if (input.name === 'birth_date') {
-                        const birthDate = new Date(input.value);
-                        const today = new Date();
-                        let age = today.getFullYear() - birthDate.getFullYear();
-                        const monthDiff = today.getMonth() - birthDate.getMonth();
-                        
-                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                            age--;
-                        }
-                        
-                        if (age < 18) {
-                            showFieldError(input, 'يجب أن يكون العمر 18 سنة على الأقل');
-                            if (isValid) {
-                                isValid = false;
-                            }
-                        }
-                        
-                        if (age > 100) {
-                            showFieldError(input, 'العمر غير صالح');
-                            if (isValid) {
-                                isValid = false;
-                            }
-                        }
+                    // تحديد نوع الحقل بناءً على سياق الحاوية
+                    const containerText = container.textContent || '';
+                    if (containerText.includes('الحالة الاجتماعية')) {
+                        hiddenInput = document.getElementById('marital_status');
+                    } else if (containerText.includes('أطفال')) {
+                        hiddenInput = document.getElementById('has_children');
+                    } else if (containerText.includes('صلاة')) {
+                        hiddenInput = document.getElementById('prayer_level');
+                    } else if (containerText.includes('حجاب')) {
+                        hiddenInput = document.getElementById('hijab_status');
+                    } else if (containerText.includes('لحية')) {
+                        hiddenInput = document.getElementById('beard_status');
+                    } else if (containerText.includes('تدخين')) {
+                        hiddenInput = document.getElementById('smoking');
                     }
                 }
             }
             
-            // Also validate hidden required inputs separately
-            const hiddenInputs = currentStepElement.querySelectorAll('input[type="hidden"][required]');
-            hiddenInputs.forEach(input => {
-                if (!input.value || input.value.trim() === '') {
-                    // Find the section container and show error on the options
-                    const sectionContainer = input.closest('.section-container');
-                    if (sectionContainer) {
-                        const label = sectionContainer.querySelector('label');
-                        if (label) {
-                            showFieldError(label, 'هذا الحقل مطلوب');
-                        }
-                    }
-                    if (isValid) {
-                        isValid = false;
-                    }
-                }
-            });
-            
-            // Focus on first invalid input (skip hidden inputs and labels)
-            if (firstInvalidInput && firstInvalidInput.tagName !== 'LABEL') {
-                firstInvalidInput.focus();
-            }
-            
-            return isValid;
+            return hiddenInput;
         }
         
-        // 5. تزامن الأقسام الدينية (Conditional Sections)
+        // 2. معالجة الحالات الخاصة (الهوية والأقسام المشروطة)
+        function handleSpecialCases(inputId, value) {
+            switch(inputId) {
+                case 'gender':
+                    updateGenderSpecificSections(value);
+                    break;
+                case 'has_children':
+                    toggleChildrenCountSection(value === 'true');
+                    break;
+            }
+        }
+        
+        // 3. تحديث الأقسام الدينية حسب الجنس
         function updateGenderSpecificSections(gender) {
             const hijabSection = document.getElementById('hijabSection');
             const beardSection = document.getElementById('beardSection');
             
-            // Hide both sections first
+            // إخفاء كلا القسمين أولاً
             if (hijabSection) hijabSection.classList.add('hidden');
             if (beardSection) beardSection.classList.add('hidden');
             
-            // Clear any existing selections in hidden sections
+            // مسح التحديدات السابقة
             if (hijabSection) {
                 hijabSection.querySelectorAll('.option-card.selected').forEach(card => {
                     card.classList.remove('selected');
                 });
                 document.getElementById('hijab_status').value = '';
-                document.getElementById('hijab_status').removeAttribute('required');
             }
             
             if (beardSection) {
@@ -1113,113 +1013,181 @@
                     card.classList.remove('selected');
                 });
                 document.getElementById('beard_status').value = '';
-                document.getElementById('beard_status').removeAttribute('required');
             }
             
-            // Show appropriate section based on gender
+            // إظهار القسم المناسب حسب الجنس
             if (gender === 'female') {
                 if (hijabSection) {
                     hijabSection.classList.remove('hidden');
-                    document.getElementById('hijab_status').setAttribute('required', 'true');
                 }
             } else if (gender === 'male') {
                 if (beardSection) {
                     beardSection.classList.remove('hidden');
-                    document.getElementById('beard_status').setAttribute('required', 'true');
                 }
             }
-            
-            // Update option cards for the new step
-            setTimeout(() => {
-                initOptionCards();
-            }, 50);
         }
         
-        // Initialize password toggle buttons
-        function initPasswordToggles() {
-            document.querySelectorAll('.password-toggle').forEach(button => {
-                button.addEventListener('click', function() {
-                    const parent = this.closest('.relative');
-                    const input = parent.querySelector('input');
-                    const icon = this.querySelector('i');
-                    
-                    if (input.type === 'password') {
-                        input.type = 'text';
-                        icon.classList.remove('fa-eye');
-                        icon.classList.add('fa-eye-slash');
-                    } else {
-                        input.type = 'password';
-                        icon.classList.remove('fa-eye-slash');
-                        icon.classList.add('fa-eye');
-                    }
-                });
+        // تبديل قسم عدد الأطفال
+        function toggleChildrenCountSection(show) {
+            const childrenCountSection = document.getElementById('childrenCountSection');
+            if (show) {
+                childrenCountSection.classList.remove('hidden');
+            } else {
+                childrenCountSection.classList.add('hidden');
+            }
+        }
+        
+        // مسح أخطاء الحقول داخل حاوية
+        function clearFieldErrorsInContainer(container) {
+            if (!container) return;
+            
+            // مسح رسائل الخطأ
+            const errors = container.querySelectorAll('.field-error');
+            errors.forEach(error => error.remove());
+            
+            // إزالة حدود الخطأ من المدخلات
+            const inputs = container.querySelectorAll('.input-field, select');
+            inputs.forEach(input => {
+                input.classList.remove('border-red-500');
+            });
+            
+            // إزالة حدود الخطأ من البطاقات
+            const cards = container.querySelectorAll('.option-card, .gender-option');
+            cards.forEach(card => {
+                card.classList.remove('border-red-500');
             });
         }
         
-        // Initialize form validation
-        function initFormValidation() {
-            // Real-time validation for email
-            const emailInput = document.querySelector('[name="email"]');
-            if (emailInput) {
-                emailInput.addEventListener('blur', function() {
-                    if (this.value && !Zefaaf.UIHelper.validateEmail(this.value)) {
-                        showFieldError(this, 'البريد الإلكتروني غير صالح');
-                    } else {
-                        clearFieldError(this);
-                    }
-                });
-            }
+        // 4. نظام التحقق المحسن مع مراعاة الهاتف
+        function validateStep(step) {
+            const stepElement = document.getElementById(`step${step}`);
+            if (!stepElement) return false;
             
-            // Real-time validation for password
-            const passwordInput = document.querySelector('[name="password"]');
-            if (passwordInput) {
-                passwordInput.addEventListener('blur', function() {
-                    if (this.value) {
-                        const validation = Zefaaf.UIHelper.validatePassword(this.value);
-                        if (!validation.isValid) {
-                            showFieldError(this, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على أرقام وحروف');
-                        } else {
-                            clearFieldError(this);
+            let isValid = true;
+            let firstInvalidElement = null;
+            
+            // التحقق من الحقول المرئية
+            const visibleInputs = stepElement.querySelectorAll('input:not([type="hidden"]), textarea, select');
+            for (const input of visibleInputs) {
+                if (input.hasAttribute('required') && !input.value.trim()) {
+                    showFieldError(input, 'هذا الحقل مطلوب');
+                    if (isValid) {
+                        isValid = false;
+                        firstInvalidElement = input;
+                    }
+                } else {
+                    clearFieldError(input);
+                    
+                    // تحقق إضافي للحقول الخاصة
+                    if (input.name === 'password' && input.value.length < 8) {
+                        showFieldError(input, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+                        isValid = false;
+                    }
+                    
+                    if (input.name === 'confirm_password') {
+                        const password = stepElement.querySelector('[name="password"]');
+                        if (password && input.value !== password.value) {
+                            showFieldError(input, 'كلمات المرور غير متطابقة');
+                            isValid = false;
                         }
                     }
-                });
+                    
+                    if (input.name === 'birth_date') {
+                        const age = calculateAge(input.value);
+                        if (age < 18) {
+                            showFieldError(input, 'يجب أن يكون العمر 18 سنة على الأقل');
+                            isValid = false;
+                        }
+                    }
+                }
             }
             
-            // Real-time validation for confirm password
-            const confirmPasswordInput = document.querySelector('[name="confirm_password"]');
-            if (confirmPasswordInput && passwordInput) {
-                confirmPasswordInput.addEventListener('blur', function() {
-                    if (this.value && this.value !== passwordInput.value) {
-                        showFieldError(this, 'كلمات المرور غير متطابقة');
-                    } else {
-                        clearFieldError(this);
+            // التحقق من الحقول المخفية المطلوبة
+            const hiddenInputs = stepElement.querySelectorAll('input[type="hidden"][required]');
+            hiddenInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    // إيجاد الحاوية الأم وعرض خطأ عليها
+                    const container = findParentContainer(input);
+                    if (container) {
+                        showSectionError(container, 'هذا الحقل مطلوب');
+                        if (isValid) {
+                            isValid = false;
+                        }
                     }
-                });
+                } else {
+                    // مسح أي أخطاء في الحاوية
+                    const container = findParentContainer(input);
+                    if (container) {
+                        clearSectionError(container);
+                    }
+                }
+            });
+            
+            // تجنب التركيز على العناصر المخفية (تحسين للهاتف)
+            if (firstInvalidElement && firstInvalidElement.type !== 'hidden') {
+                // استخدام setTimeout لمنع القفز المفاجئ
+                setTimeout(() => {
+                    firstInvalidElement.focus({ preventScroll: true });
+                }, 100);
+            }
+            
+            return isValid;
+        }
+        
+        // دالة مساعدة لحساب العمر
+        function calculateAge(birthDate) {
+            if (!birthDate) return 0;
+            const today = new Date();
+            const birth = new Date(birthDate);
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                age--;
+            }
+            
+            return age;
+        }
+        
+        // عرض خطأ على قسم كامل
+        function showSectionError(container, message) {
+            // البحث عن التسمية في القسم
+            const label = container.querySelector('label');
+            if (label) {
+                let errorElement = label.parentElement.querySelector('.field-error');
+                if (!errorElement) {
+                    errorElement = document.createElement('div');
+                    errorElement.className = 'field-error';
+                    label.parentElement.appendChild(errorElement);
+                }
+                errorElement.textContent = message;
             }
         }
         
+        // مسح خطأ من قسم
+        function clearSectionError(container) {
+            const errorElement = container.querySelector('.field-error');
+            if (errorElement) {
+                errorElement.remove();
+            }
+        }
+        
+        // عرض خطأ لحقل
         function showFieldError(input, message) {
             const parent = input.parentElement;
             let errorElement = parent.querySelector('.field-error');
             
             if (!errorElement) {
                 errorElement = document.createElement('div');
-                errorElement.className = 'field-error text-red-600 text-sm mt-1';
+                errorElement.className = 'field-error';
                 parent.appendChild(errorElement);
             }
             
             errorElement.textContent = message;
-            
-            if (input.classList) {
-                input.classList.add('border-red-500');
-            }
-            
-            // For option cards, highlight the container
-            if (input.classList && input.classList.contains('option-card')) {
-                input.style.borderColor = '#f44336';
-            }
+            input.classList.add('border-red-500');
         }
         
+        // مسح خطأ من حقل
         function clearFieldError(input) {
             const parent = input.parentElement;
             const errorElement = parent.querySelector('.field-error');
@@ -1228,21 +1196,74 @@
                 errorElement.remove();
             }
             
-            if (input.classList) {
-                input.classList.remove('border-red-500');
+            input.classList.remove('border-red-500');
+        }
+        
+        // 5. تعيين الاختيارات الافتراضية
+        function initDefaultSelections() {
+            // تعيين التدخين الافتراضي إلى "لا أدخن"
+            const smokingNoCard = document.querySelector('.option-card[data-value="لا أدخن"]');
+            if (smokingNoCard) {
+                smokingNoCard.click();
             }
             
-            // For option cards, reset border color
-            if (input.classList && input.classList.contains('option-card')) {
-                if (input.classList.contains('selected')) {
-                    input.style.borderColor = 'var(--primary)';
-                } else {
-                    input.style.borderColor = '';
+            // تعيين الأطفال الافتراضي إلى "لا"
+            setTimeout(() => {
+                const childrenNoCard = document.querySelector('.option-card[data-value="false"]');
+                if (childrenNoCard) {
+                    childrenNoCard.click();
                 }
+            }, 100);
+        }
+        
+        // 6. تبديل عرض كلمة المرور
+        function initPasswordToggles() {
+            document.querySelectorAll('.password-toggle').forEach(button => {
+                button.addEventListener('click', function() {
+                    const input = this.parentElement.querySelector('input');
+                    const icon = this.querySelector('i');
+                    
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.replace('fa-eye', 'fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.replace('fa-eye-slash', 'fa-eye');
+                    }
+                });
+            });
+        }
+        
+        // 7. التحقق من صحة النموذج في الوقت الحقيقي
+        function initFormValidation() {
+            // التحقق من صحة البريد الإلكتروني
+            const emailInput = document.querySelector('[name="email"]');
+            if (emailInput) {
+                emailInput.addEventListener('blur', function() {
+                    if (this.value && !isValidEmail(this.value)) {
+                        showFieldError(this, 'البريد الإلكتروني غير صالح');
+                    }
+                });
+            }
+            
+            // التحقق من قوة كلمة المرور
+            const passwordInput = document.querySelector('[name="password"]');
+            if (passwordInput) {
+                passwordInput.addEventListener('blur', function() {
+                    if (this.value && this.value.length < 8) {
+                        showFieldError(this, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+                    }
+                });
             }
         }
         
-        // Update character count
+        // دالة التحقق من صحة البريد الإلكتروني
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+        
+        // 8. تحديث عداد الأحرف
         function updateCharCount(textarea, counterId) {
             const counter = document.getElementById(counterId);
             if (!counter) return;
@@ -1252,7 +1273,7 @@
             
             counter.textContent = `${length}/${maxLength} حرف`;
             
-            // Update color based on length
+            // تحديث اللون حسب الطول
             counter.classList.remove('warning', 'danger');
             if (length > maxLength * 0.8) {
                 counter.classList.add('warning');
@@ -1262,22 +1283,16 @@
             }
         }
         
-        // Update step indicator
+        // 9. تحديث مؤشر الخطوة
         function updateStepIndicator() {
-            // Update progress bar
+            // تحديث شريط التقدم
             const progressPercentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
-            const progressBar = document.getElementById('progressBar');
-            if (progressBar) {
-                progressBar.style.width = `${progressPercentage}%`;
-            }
+            document.getElementById('progressBar').style.width = `${progressPercentage}%`;
             
-            // Update step indicator text
-            const stepIndicator = document.getElementById('stepIndicator');
-            if (stepIndicator) {
-                stepIndicator.textContent = `الخطوة ${currentStep} من ${totalSteps}`;
-            }
+            // تحديث نص مؤشر الخطوة
+            document.getElementById('stepIndicator').textContent = `الخطوة ${currentStep} من ${totalSteps}`;
             
-            // Update step circles and lines
+            // تحديث الدوائر والخطوط
             for (let i = 1; i <= totalSteps; i++) {
                 const circle = document.querySelector(`.step-circle[data-step="${i}"]`);
                 const line = document.getElementById(`line${i}`);
@@ -1299,105 +1314,138 @@
                 }
             }
             
-            // Show/hide steps
+            // إظهار/إخفاء الخطوات
             document.querySelectorAll('.form-step').forEach(step => {
                 step.classList.remove('active');
             });
             
-            const currentStepElement = document.getElementById(`step${currentStep}`);
-            if (currentStepElement) {
-                currentStepElement.classList.add('active');
-                
-                // Re-initialize option cards for the new step
-                setTimeout(() => {
-                    initOptionCards();
-                }, 100);
-            }
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            
+            // إعادة تهيئة البطاقات للخطوة الجديدة
+            setTimeout(initOptionCards, 100);
         }
         
-        // Next step
+        // 10. التنقل بين الخطوات
         function nextStep() {
             if (validateStep(currentStep)) {
                 if (currentStep < totalSteps) {
                     currentStep++;
                     updateStepIndicator();
-                    
-                    // Scroll to top of form
-                    const formCard = document.querySelector('.form-card');
-                    if (formCard) {
-                        formCard.scrollIntoView({ 
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
+                    smoothScrollToForm();
                 }
             }
         }
         
-        // Previous step
         function prevStep() {
             if (currentStep > 1) {
                 currentStep--;
                 updateStepIndicator();
+                smoothScrollToForm();
             }
         }
         
-        // Form submission
-        document.getElementById('registrationForm')?.addEventListener('submit', async function(e) {
+        // 11. تمرير سلس للنموذج
+        function smoothScrollToForm() {
+            const formCard = document.querySelector('.form-card');
+            if (formCard) {
+                const offset = window.innerWidth < 768 ? 20 : 50;
+                const topPosition = formCard.getBoundingClientRect().top + window.pageYOffset - offset;
+                
+                window.scrollTo({
+                    top: topPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }
+        
+        // 12. منع القفز عند التركيز (تحسين للهاتف)
+        function preventFocusJumps() {
+            let lastScrollTop = 0;
+            
+            window.addEventListener('scroll', function() {
+                lastScrollTop = window.pageYOffset;
+            });
+            
+            document.addEventListener('focusin', function(e) {
+                if (e.target.matches('input, textarea, select')) {
+                    setTimeout(() => {
+                        window.scrollTo({
+                            top: lastScrollTop,
+                            behavior: 'instant'
+                        });
+                    }, 10);
+                }
+            });
+        }
+        
+        // 13. إرسال النموذج
+        document.getElementById('registrationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Validate final step
+            // التحقق من الخطوة الأخيرة
             if (!validateStep(currentStep)) {
-                Zefaaf.UIHelper.showNotification('يرجى ملء جميع الحقول المطلوبة بشكل صحيح', 'error');
+                if (window.Zefaaf && Zefaaf.UIHelper) {
+                    Zefaaf.UIHelper.showNotification('يرجى ملء جميع الحقول المطلوبة بشكل صحيح', 'error');
+                }
                 return;
             }
             
-            // Collect all form data
+            // جمع بيانات النموذج
             const formData = new FormData(this);
             const data = Object.fromEntries(formData.entries());
             
-            // Additional data from hidden inputs
+            // إضافة بيانات الحقول المخفية
             document.querySelectorAll('input[type="hidden"]').forEach(input => {
-                if (input.name && input.value) {
+                if (input.name) {
                     data[input.name] = input.value;
                 }
             });
             
-            // Convert children_count to number
-            if (data.children_count) {
-                data.children_count = parseInt(data.children_count);
-            }
-            
-            // Convert has_children to boolean
+            // تحويل أنواع البيانات لتتوافق مع backend
             if (data.has_children) {
                 data.has_children = data.has_children === 'true';
             }
             
-            // Validate form data
-            const validation = Zefaaf.FormValidator.validateRegistrationForm(data);
-            if (!validation.isValid) {
-                // Show first error
-                const firstErrorKey = Object.keys(validation.errors)[0];
-                Zefaaf.UIHelper.showNotification(validation.errors[firstErrorKey], 'error');
-                return;
+            if (data.children_count) {
+                data.children_count = parseInt(data.children_count);
+            }
+            
+            // التحقق من صحة البيانات
+            if (window.Zefaaf && Zefaaf.FormValidator) {
+                const validation = Zefaaf.FormValidator.validateRegistrationForm(data);
+                if (!validation.isValid) {
+                    const firstError = Object.keys(validation.errors)[0];
+                    Zefaaf.UIHelper.showNotification(validation.errors[firstError], 'error');
+                    return;
+                }
             }
             
             try {
-                Zefaaf.UIHelper.showLoading('جاري إنشاء حسابك...');
+                // إظهار مؤشر التحميل
+                if (window.Zefaaf && Zefaaf.UIHelper) {
+                    Zefaaf.UIHelper.showLoading('جاري إنشاء حسابك...');
+                }
                 
-                // Send registration request
-                const result = await Zefaaf.AuthService.register(data);
-                
-                Zefaaf.UIHelper.hideLoading();
-                Zefaaf.UIHelper.showNotification('تم تسجيل حسابك بنجاح', 'success');
-                
-                // Show success step
-                currentStep = 5;
-                updateStepIndicator();
-                
+                // إرسال طلب التسجيل
+                if (window.Zefaaf && Zefaaf.AuthService) {
+                    const result = await Zefaaf.AuthService.register(data);
+                    
+                    // إخفاء مؤشر التحميل
+                    if (window.Zefaaf && Zefaaf.UIHelper) {
+                        Zefaaf.UIHelper.hideLoading();
+                        Zefaaf.UIHelper.showNotification('تم تسجيل حسابك بنجاح', 'success');
+                    }
+                    
+                    // عرض شاشة النجاح
+                    currentStep = 5;
+                    updateStepIndicator();
+                }
             } catch (error) {
-                Zefaaf.UIHelper.hideLoading();
-                Zefaaf.UIHelper.showNotification(error.message || 'فشل إنشاء الحساب', 'error');
+                // إخفاء مؤشر التحميل وعرض الخطأ
+                if (window.Zefaaf && Zefaaf.UIHelper) {
+                    Zefaaf.UIHelper.hideLoading();
+                    Zefaaf.UIHelper.showNotification(error.message || 'فشل إنشاء الحساب', 'error');
+                }
             }
         });
     </script>
