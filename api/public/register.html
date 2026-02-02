@@ -193,6 +193,7 @@
         
         .section-container {
             margin-bottom: 2rem;
+            position: relative;
         }
         
         .gender-option {
@@ -215,6 +216,37 @@
             font-size: 2.5rem;
             margin-bottom: 15px;
             display: block;
+        }
+        
+        /* تحسينات للهاتف المحمول */
+        @media (max-width: 768px) {
+            .form-card {
+                margin: 0 10px;
+                padding: 20px 15px;
+            }
+            
+            .step-circle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            
+            .input-field {
+                padding: 12px 16px;
+            }
+            
+            .btn-primary, .btn-secondary {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            .option-card, .gender-option {
+                padding: 15px;
+            }
+            
+            .option-card i, .gender-option i {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
@@ -490,11 +522,12 @@
                             عدد الأطفال
                         </label>
                         <select name="children_count" class="input-field">
+                            <option value="">اختر عدد الأطفال</option>
                             <option value="1">1 طفل</option>
                             <option value="2">2 أطفال</option>
                             <option value="3">3 أطفال</option>
                             <option value="4">4 أطفال</option>
-                            <option value="5+">5 أطفال أو أكثر</option>
+                            <option value="5">5 أطفال أو أكثر</option>
                         </select>
                     </div>
                     
@@ -857,33 +890,52 @@
                 card.addEventListener('click', function() {
                     handleOptionCardClick(this);
                 });
-                
-                // Add data attribute for easy identification
-                card.dataset.optionType = 'selectable';
             });
         }
         
         function handleOptionCardClick(card) {
             const value = card.getAttribute('data-value');
-            const cardType = card.classList.contains('gender-option') ? 'gender-option' : 'option-card';
             
-            // Find the section container
-            const sectionContainer = card.closest('.section-container') || card.closest('div[class*="col-span"]');
+            // Find the closest section container
+            const sectionContainer = card.closest('.section-container') || 
+                                     card.closest('div[class*="col-span"]') || 
+                                     card.closest('.space-y-8')?.querySelector('.section-container') ||
+                                     card.parentElement;
             
-            // Find the hidden input - search in broader scope
+            // Find the hidden input - search in specific locations
             let hiddenInput = null;
+            let inputId = null;
             
-            if (sectionContainer) {
-                // Look for hidden input in section container
-                hiddenInput = sectionContainer.querySelector('input[type="hidden"]');
-                
-                // If not found, look in parent or specific IDs
-                if (!hiddenInput) {
-                    const inputId = getInputIdForCardType(cardType, sectionContainer);
-                    if (inputId) {
-                        hiddenInput = document.getElementById(inputId);
+            // Determine which hidden input to update based on card context
+            if (card.classList.contains('gender-option')) {
+                inputId = 'gender';
+            } else {
+                // Look for specific IDs based on section content
+                if (sectionContainer) {
+                    const sectionLabel = sectionContainer.querySelector('label');
+                    if (sectionLabel) {
+                        const labelText = sectionLabel.textContent;
+                        if (labelText.includes('الحالة الاجتماعية')) inputId = 'marital_status';
+                        else if (labelText.includes('أطفال')) inputId = 'has_children';
+                        else if (labelText.includes('صلاة')) inputId = 'prayer_level';
+                        else if (labelText.includes('حجاب')) inputId = 'hijab_status';
+                        else if (labelText.includes('لحية')) inputId = 'beard_status';
+                        else if (labelText.includes('تدخين')) inputId = 'smoking';
+                    }
+                    
+                    // Also check for hidden input in the section container
+                    if (!inputId) {
+                        const sectionInput = sectionContainer.querySelector('input[type="hidden"]');
+                        if (sectionInput) {
+                            hiddenInput = sectionInput;
+                        }
                     }
                 }
+            }
+            
+            // Get the hidden input by ID if not already found
+            if (!hiddenInput && inputId) {
+                hiddenInput = document.getElementById(inputId);
             }
             
             // Remove selected class from all cards in the same group
@@ -891,13 +943,11 @@
                 const allCardsInGroup = sectionContainer.querySelectorAll('.option-card[data-value], .gender-option[data-value]');
                 allCardsInGroup.forEach(c => {
                     c.classList.remove('selected');
-                    c.style.borderColor = '';
                 });
             }
             
             // Add selected class to clicked card
             card.classList.add('selected');
-            card.style.borderColor = 'var(--primary)';
             
             // Clear any error messages for this section
             clearAllFieldErrorsInSection(sectionContainer);
@@ -909,8 +959,6 @@
                 // Trigger change event manually
                 const event = new Event('change', { bubbles: true });
                 hiddenInput.dispatchEvent(event);
-                
-                console.log(`Updated ${hiddenInput.id} to value: ${value}`);
                 
                 // Special handling for specific fields
                 if (hiddenInput.id === 'gender') {
@@ -925,25 +973,11 @@
                     } else {
                         childrenSection.classList.add('hidden');
                         childrenSection.querySelector('select')?.removeAttribute('required');
+                        // Clear children count if "لا" is selected
+                        document.querySelector('select[name="children_count"]').value = '';
                     }
                 }
             }
-        }
-        
-        function getInputIdForCardType(cardType, container) {
-            if (cardType === 'gender-option') return 'gender';
-            if (container.classList.contains('section-container')) {
-                const sectionId = container.id;
-                if (sectionId.includes('marital')) return 'marital_status';
-                if (sectionId.includes('hijab')) return 'hijab_status';
-                if (sectionId.includes('beard')) return 'beard_status';
-                if (sectionId.includes('prayer')) return 'prayer_level';
-                if (sectionId.includes('smoking')) return 'smoking';
-            }
-            
-            // Fallback: check for any hidden input in container
-            const hiddenInput = container.querySelector('input[type="hidden"]');
-            return hiddenInput ? hiddenInput.id : null;
         }
         
         function clearAllFieldErrorsInSection(section) {
@@ -965,23 +999,13 @@
             const currentStepElement = document.getElementById(`step${step}`);
             if (!currentStepElement) return false;
             
-            const inputs = currentStepElement.querySelectorAll('[required]');
+            const inputs = currentStepElement.querySelectorAll('[required]:not([type="hidden"])');
             let isValid = true;
             let firstInvalidInput = null;
             
             for (const input of inputs) {
-                // Skip hidden inputs for focus
-                if (input.type === 'hidden') {
-                    if (!input.value || input.value.trim() === '') {
-                        showFieldError(input, 'هذا الحقل مطلوب');
-                        if (isValid) {
-                            isValid = false;
-                        }
-                    } else {
-                        clearFieldError(input);
-                    }
-                    continue;
-                }
+                // Skip hidden inputs for validation
+                if (input.type === 'hidden') continue;
                 
                 if (!input.value || input.value.trim() === '') {
                     showFieldError(input, 'هذا الحقل مطلوب');
@@ -1040,8 +1064,26 @@
                 }
             }
             
-            // Focus on first invalid input (skip hidden inputs)
-            if (firstInvalidInput && firstInvalidInput.type !== 'hidden') {
+            // Also validate hidden required inputs separately
+            const hiddenInputs = currentStepElement.querySelectorAll('input[type="hidden"][required]');
+            hiddenInputs.forEach(input => {
+                if (!input.value || input.value.trim() === '') {
+                    // Find the section container and show error on the options
+                    const sectionContainer = input.closest('.section-container');
+                    if (sectionContainer) {
+                        const label = sectionContainer.querySelector('label');
+                        if (label) {
+                            showFieldError(label, 'هذا الحقل مطلوب');
+                        }
+                    }
+                    if (isValid) {
+                        isValid = false;
+                    }
+                }
+            });
+            
+            // Focus on first invalid input (skip hidden inputs and labels)
+            if (firstInvalidInput && firstInvalidInput.tagName !== 'LABEL') {
                 firstInvalidInput.focus();
             }
             
@@ -1320,6 +1362,16 @@
                     data[input.name] = input.value;
                 }
             });
+            
+            // Convert children_count to number
+            if (data.children_count) {
+                data.children_count = parseInt(data.children_count);
+            }
+            
+            // Convert has_children to boolean
+            if (data.has_children) {
+                data.has_children = data.has_children === 'true';
+            }
             
             // Validate form data
             const validation = Zefaaf.FormValidator.validateRegistrationForm(data);
